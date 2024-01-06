@@ -9,15 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="V0fh9E4s-rE.jpg" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\ArtModel\ArtModel.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="V0fh9E4s-rE.jpg" />
+    <ProjectReference Include="..\ArtViewModel\ArtViewModel.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
 
 namespace ArtModel.MathLib
 {
@@ -38,21 +37,11 @@ namespace ArtModel.MathLib
             Rows = rows;
             Columns = columns;
 
-            _data = new T[rows, columns]; 
+            _data = new T[rows, columns];
         }
 
-        public Matrix2D(int rows, int columns, T initialValue)
+        public Matrix2D(int rows, int columns, T initialValue) : this(rows, columns)
         {
-            if (rows == 0 || columns == 0)
-            {
-                throw new ArgumentException("Can't create an empty matrix!");
-            }
-
-            Rows = rows;
-            Columns = columns;
-
-            _data = new T[rows, columns];
-
             for (int i = 0; i < rows; i++)
             {
                 for (int j = 0; j < columns; j++)
@@ -61,6 +50,5 @@ namespace ArtModel.MathLib
                 }
             }
         }
-
     }
 }

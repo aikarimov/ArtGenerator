@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ArtModel.MathLib
+namespace ArtModel.ColorModel.ColorSpaces.Spaces
 {
-    public class ColorUtils
+    internal class CIELABSpace : ColorSpaceAbstract
     {
-
     }
 }

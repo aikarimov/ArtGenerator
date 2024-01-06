@@ -1,9 +1,6 @@
-﻿using ArtModel.MathLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using ArtModel.ColorModel.ColorSpaces.Spaces;
+using ArtModel.Image;
+using ArtModel.MathLib;
 
 namespace ArtModel.ImageProccessing
 {
@@ -11,53 +8,55 @@ namespace ArtModel.ImageProccessing
     {
         private enum Direction
         {
-            X,
-            Y
+            Horizontal,
+            Vertical
         }
 
-        public static Matrix2D<(double, double, double)> ApplyGaussianBlur(Matrix2D<(double, double, double)> matrix, double sigma)
+        public static MatrixBitmap ApplyGaussianBlurToRGB(MatrixBitmap matrixImg, double sigma)
         {
-            int rows = matrix.Rows;
-            int cols = matrix.Columns;
+            int rows = matrixImg.Rows;
+            int cols = matrixImg.Columns;
 
-            Matrix2D<double> matrix_Red = new Matrix2D<double>(matrix.Rows, matrix.Columns);
-            for (int i = 0; i < rows; i++)
+            Matrix2D<double> matrix_Red = new Matrix2D<double>(matrixImg.Rows, matrixImg.Columns);
+            for (int y = 0; y < rows; y++)
             {
-                for (int j = 0; j < cols; j++)
+                for (int x = 0; x < cols; x++)
                 {
-                    matrix_Red[i, j] = (matrix[i, j].Item1);
+                    matrix_Red[y, x] = matrixImg[x, y].Get(0);
                 }
             }
 
-            Matrix2D<double> matrix_Green = new Matrix2D<double>(matrix.Rows, matrix.Columns);
-            for (int i = 0; i < rows; i++)
+            Matrix2D<double> matrix_Green = new Matrix2D<double>(matrixImg.Rows, matrixImg.Columns);
+            for (int y = 0; y < rows; y++)
             {
-                for (int j = 0; j < cols; j++)
+                for (int x = 0; x < cols; x++)
                 {
-                    matrix_Green[i, j] = (matrix[i, j].Item2);
+                    matrix_Green[y, x] = matrixImg[x, y].Get(1);
                 }
             }
 
-            Matrix2D<double> matrix_Blue = new Matrix2D<double>(matrix.Rows, matrix.Columns);
-            for (int i = 0; i < rows; i++)
+            Matrix2D<double> matrix_Blue = new Matrix2D<double>(matrixImg.Rows, matrixImg.Columns);
+            for (int y = 0; y < rows; y++)
             {
-                for (int j = 0; j < cols; j++)
+                for (int x = 0; x < cols; x++)
                 {
-                    matrix_Blue[i, j] = (matrix[i, j].Item3);
+                    matrix_Blue[y, x] = matrixImg[x, y].Get(2);
                 }
             }
-
             var g1 = ApplyGaussianBlur(matrix_Red, sigma);
             var g2 = ApplyGaussianBlur(matrix_Green, sigma);
             var g3 = ApplyGaussianBlur(matrix_Blue, sigma);
 
-            Matrix2D<(double, double, double)> result = new Matrix2D<(double, double, double)>(rows, cols);
+            MatrixBitmap result = new MatrixBitmap(rows, cols, matrixImg.ColorSpace);
+            MatrixConverter.InitializeMatrix(result);
 
-            for (int i = 0; i < rows; i++)
+            for (int y = 0; y < rows; y++)
             {
-                for (int j = 0; j < cols; j++)
+                for (int x = 0; x < cols; x++)
                 {
-                    result[i, j] = (g1[i, j], g2[i, j], g3[i, j]);
+                    result[x, y].Set(0, g1[y, x]);
+                    result[x, y].Set(1, g2[y, x]);
+                    result[x, y].Set(2, g3[y, x]);
                 }
             }
 
@@ -65,21 +64,16 @@ namespace ArtModel.ImageProccessing
         }
 
 
-        public static Matrix2D<double> ApplyGaussianBlur(Matrix2D<double> matrix, double sigma)
+        private static Matrix2D<double> ApplyGaussianBlur(Matrix2D<double> matrix, double sigma)
         {
-            if (sigma < 1)
-            {
-                return matrix;
-            }
-
             int kernelSize = (int)Math.Ceiling(6 * sigma);
             if (kernelSize % 2 == 0)
             {
                 kernelSize++;
             }
 
-            var kernelX = GenerateGaussianKernel(kernelSize, sigma, Direction.X);
-            var kernelY = GenerateGaussianKernel(kernelSize, sigma, Direction.Y);
+            var kernelX = Generate1dGaussianKernel(kernelSize, sigma, Direction.Horizontal);
+            var kernelY = Generate1dGaussianKernel(kernelSize, sigma, Direction.Vertical);
 
             var blurX = ApplyKernel(matrix, kernelX);
             var blurXY = ApplyKernel(blurX, kernelY);
@@ -92,13 +86,13 @@ namespace ArtModel.ImageProccessing
             return ImageFiltering.ApplyConvolution(matrix, kernel);
         }
 
-        private static double[,] GenerateGaussianKernel(int kernelSize, double sigma, Direction direction)
+        private static double[,] Generate1dGaussianKernel(int kernelSize, double sigma, Direction direction)
         {
             int halfSize = kernelSize / 2;
 
             double[,] kernel;
 
-            if (direction == Direction.X)
+            if (direction == Direction.Horizontal)
             {
                 kernel = new double[1, kernelSize];
                 for (int i = -halfSize; i <= halfSize; i++)
