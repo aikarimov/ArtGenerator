@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-
-namespace ArtModel.MathLib
+﻿namespace ArtModel.MathLib
 {
     public class Matrix2D<T>
     {

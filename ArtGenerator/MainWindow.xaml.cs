@@ -1,6 +1,7 @@
 ﻿using ArtModel.ImageProccessing;
 using ArtViewModel;
 using System.Drawing;
+using System.IO;
 using System.Windows;
 
 namespace ArtGenerator
@@ -12,7 +13,7 @@ namespace ArtGenerator
     {
         private ViewModelController viewModelController;
 
-        private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\Valve.png";
+        private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\kk.jpg";
 
         public MainWindow()
         {
@@ -23,7 +24,21 @@ namespace ArtGenerator
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            viewModelController.ProcessImage(path);
+            using (FileStream fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                Bitmap bitmap = (Bitmap)Image.FromStream(fileStream);
+
+                viewModelController.ProcessImage(bitmap);
+            }
+
+            try
+            {
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Произошла ошибка: {ex.Message}");
+            }
         }
     }
 }

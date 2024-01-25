@@ -5,8 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ArtModel.ColorModel.ColorSpaces;
 using ArtModel.Core;
-using static ArtModel.ColorModel.ColorSpaces.ColorSpaceType;
 
 namespace ArtViewModel
 {
@@ -17,11 +17,9 @@ namespace ArtViewModel
 
         }
 
-        public void ProcessImage(string inputPath)
+        public void ProcessImage(Bitmap bitmap)
         {
-            Bitmap bitmap = new Bitmap(inputPath);
-            CoreArtModel model = new CoreArtModel(RGB, bitmap);
-            //model.CreateImage();
+            CoreArtModel model = new CoreArtModel(ColorSpaceType.RGB, bitmap);
         }
     }
 }
