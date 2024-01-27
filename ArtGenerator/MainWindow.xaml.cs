@@ -1,7 +1,9 @@
-﻿using ArtModel.ImageProccessing;
-using ArtViewModel;
+﻿using ArtViewModel;
+using System.DirectoryServices.ActiveDirectory;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 
 namespace ArtGenerator
@@ -13,8 +15,7 @@ namespace ArtGenerator
     {
         private ViewModelController viewModelController;
 
-        private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\kk.jpg";
-
+        private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\mountains.jpg";
         public MainWindow()
         {
             InitializeComponent();
@@ -26,18 +27,9 @@ namespace ArtGenerator
         {
             using (FileStream fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                Bitmap bitmap = (Bitmap)Image.FromStream(fileStream);
+                Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
 
-                viewModelController.ProcessImage(bitmap);
-            }
-
-            try
-            {
-                
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Произошла ошибка: {ex.Message}");
+                viewModelController.ProcessImage(inputBitmap);
             }
         }
     }

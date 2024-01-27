@@ -2,10 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ArtModel.ColorModel.ColorSpaces;
 using ArtModel.Core;
 
 namespace ArtViewModel
@@ -19,7 +15,7 @@ namespace ArtViewModel
 
         public void ProcessImage(Bitmap bitmap)
         {
-            CoreArtModel model = new CoreArtModel(ColorSpaceType.RGB, bitmap);
+            CoreArtModel model = new CoreArtModel(bitmap);
         }
     }
 }

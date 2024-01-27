@@ -1,10 +1,8 @@
-﻿using System.Drawing.Imaging;
-using ArtModel.Image.Matrix;
-using ArtModel.MathLib;
-using ArtModel.ImageProccessing;
-using ArtModel.ColorModel;
-using ArtModel.Image.StrokeModel;
-using ArtModel.ColorModel.ColorSpaces;
+﻿using ArtModel.ImageModel;
+using ArtModel.ImageModel.ImageProccessing;
+using ArtModel.ImageModel.Tracing;
+using System.Drawing;
+using System.IO;
 
 namespace ArtModel.Core.ArtificialCanvas
 {
@@ -12,82 +10,83 @@ namespace ArtModel.Core.ArtificialCanvas
     {
         private string outputPath = "C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output";
 
-        private ColorSpaceBase _colorSpace;
+        private ArtBitmap _originalCanvas;
+        private ArtBitmap _artificialCanvas;
+        private ArtBitmap _shapesCanvas;
+        private ArtBitmap _skeletonCanvas;
+        private ArtBitmap _errorCanvas;
 
-        private MatrixBitmap _originalCanvas;
-        private MatrixBitmap _artificialCanvas;
-        private MatrixBitmap _shapesCanvas;
-        private MatrixBitmap _skeletonCanvas;
-        private MatrixBitmap _errorCanvas;
+        private Random _random = new Random(/*Guid.NewGuid().GetHashCode()*/ 1);
 
-        private int _iterationsCount = 1;
+        private Dictionary<(int, int), bool> _allCoordinates;
 
-        private Random _random;
-
-        public ArtificialCanvasGenerator(MatrixBitmap originalMatrix)
+        public ArtificialCanvasGenerator(Bitmap bitmap)
         {
-            _originalCanvas = originalMatrix;
-            _artificialCanvas = new MatrixBitmap(originalMatrix);
-            _random = new Random(Guid.NewGuid().GetHashCode());
+            _originalCanvas = new ArtBitmap(bitmap);
+            _originalCanvas.Save(outputPath, "ArtOriginal");
 
-            /*MatrixBitmap blurred = GaussianBlur.ApplyGaussianBlurToRGB(originalMatrix, 1);
-            MatrixBitmap grayMap = blurred.ToGrayscale();
-            MatrixBitmap brightnessMap = BrightnessMap.GetBrightnessMap(grayMap);*/
+            _artificialCanvas = new ArtBitmap(bitmap.Width, bitmap.Height);
 
-            IterateStrokes();
+            _allCoordinates = new Dictionary<(int, int), bool>();
+            InitCoordinates();
 
-            MatrixConverter.WriteMatrixToFile(_artificialCanvas, outputPath, "art", ImageFormat.Png);
-        }
-
-        private void IterateStrokes()
-        {
-            //MatrixBitmap grayMap = _originalCanvas.ToGrayscale();
-            //MatrixBitmap brightnessMap = BrightnessMap.GetBrightnessMap(grayMap);
-
-            double tol = 4;
-
-            for (int step = 0; step < 10000; step++)
+            void InitCoordinates()
             {
-                new Thread (() => 
+                for (int x = 0; x < _originalCanvas.Width; x++)
                 {
-                    (int x, int y) coords = GetRandomCoords();
-                    int x = coords.x;
-                    int y = coords.y;
-
-                    // double angleNorm = (brightnessMap[x, y][0] + Math.PI / 2) % (2 * Math.PI);
-
-                    /*int x2 = x + (int)(10 * Math.Cos(angleNorm));
-                    int y2 = y + (int)(10 * Math.Sin(angleNorm));*/
-
-                    int radius = 10;
-                    while (radius > 0)
+                    for (int y = 0; y < _originalCanvas.Height; y++)
                     {
-                        CircleMask circle = StrokeCircleMask.ApplyCircleMask(_originalCanvas, x, y, radius);
-                        var disp = StrokeUtils.GetDispersion(circle.Data);
-
-                        if (disp.dispersion < tol || radius == 1)
-                        {
-                            WritePixelsWithColor(circle.Coordinates, disp.average);
-                            break;
-                        }
-                        else
-                        {
-                            radius -= 1;
-                        }
+                        _allCoordinates.Add((x, y), true);
                     }
-                }).Start();
-                
+                }
             }
         }
 
-        private (int x, int y) GetRandomCoords()
+        public void IterateStrokes()
         {
-            int rx = _random.Next(0, _originalCanvas.Width);
-            int ry = _random.Next(0, _originalCanvas.Height);
-            return (rx, ry);
+            double[,] brightnessMap = BrightnessMap.GetBrightnessMap(_originalCanvas);
+
+            int counter = 0;
+
+            while (GetFromPixelPool(out var coordinates))
+            {
+                int x = coordinates.x;
+                int y = coordinates.y;
+
+                TracingResult path = Tracer.GetIterativeTracePath(_originalCanvas, (x, y), brightnessMap[y, x]);
+                GetFromPixelPool(path.Coordinates);
+
+                WritePixels(path.Coordinates, path.MeanColor);
+
+                if (counter % 2500 == 0)
+                {
+                    _artificialCanvas.Save(outputPath, "Artificial" + counter);
+                }
+
+                counter++;
+            }
+
+            _artificialCanvas.Save(outputPath, "Artificial");
         }
 
-        private void WritePixelsWithColor(List<(int x, int y)> coordonates, PixelData color)
+        public void GetFromPixelPool(List<(int, int)> pixels)
+        {
+            foreach (var pixel in pixels)
+            {
+                _allCoordinates.Remove(pixel);
+            }
+        }
+
+        private bool GetFromPixelPool(out (int x, int y) coords)
+        {
+            int rand = _random.Next(_allCoordinates.Count);
+            coords = _allCoordinates.ElementAt(rand).Key;
+            _allCoordinates.Remove(coords);
+
+            return (_allCoordinates.Count > 0);
+        }
+
+        private void WritePixels(List<(int x, int y)> coordonates, Color color)
         {
             foreach (var c in coordonates)
             {
@@ -95,27 +94,10 @@ namespace ArtModel.Core.ArtificialCanvas
             }
         }
 
-        /*private (PixelData color, int radius) CalculateFirstROI(int x, int y)
+        public void EndIterations()
         {
-            double tol = 
-        }
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-        public MatrixBitmap GetArtificialCanvas()
-        {
-            return _artificialCanvas;
+            _originalCanvas.UnlockBitmap();
+            _artificialCanvas.UnlockBitmap();
         }
     }
 }

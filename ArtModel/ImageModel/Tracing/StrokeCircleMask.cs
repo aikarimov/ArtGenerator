@@ -1,19 +1,13 @@
-﻿using ArtModel.ColorModel;
-using System.Collections;
-using ArtModel.Image.Matrix;
-
-namespace ArtModel.Image.StrokeModel
+﻿namespace ArtModel.ImageModel.Tracing
 {
-    public struct CircleMask
+    public struct CircleMaskResult
     {
-        public CircleMask(List<(int x, int y)> coordinates, List<PixelData> data)
+        public CircleMaskResult(List<(int x, int y)> coordinates)
         {
             Coordinates = coordinates;
-            Data = data;
         }
 
-        public List<(int x, int y)> Coordinates;
-        public List<PixelData> Data;
+        public List<(int x, int y)> Coordinates { get; private set; }
     }
 
     public static class StrokeCircleMask
@@ -22,18 +16,17 @@ namespace ArtModel.Image.StrokeModel
 
         static StrokeCircleMask()
         {
-            for (int i = 1; i < 15; i++)
+            for (int i = 0; i < 15; i++)
             {
                 GetMask(i);
             }
         }
 
-        public static CircleMask ApplyCircleMask(MatrixBitmap matrix, int x, int y, int radius)
+        public static CircleMaskResult ApplyCircleMask(ArtBitmap bitmap, int x, int y, int radius)
         {
             bool[,] mask = GetMask(radius);
 
             List<(int x, int y)> coordinates = new();
-            List<PixelData> data = new();
 
             for (int i = -radius; i <= radius; i++)
             {
@@ -44,16 +37,15 @@ namespace ArtModel.Image.StrokeModel
                         int rx = x + i;
                         int ry = y + j;
 
-                        if (rx > 0 && rx < matrix.Width && ry > 0 && ry < matrix.Height)
+                        if (rx >= 0 && rx < bitmap.Width && ry >= 0 && ry < bitmap.Height)
                         {
                             coordinates.Add((rx, ry));
-                            data.Add(matrix[rx, ry]);
                         }
                     }
                 }
             }
 
-            return new CircleMask(coordinates, data);
+            return new CircleMaskResult(coordinates);
         }
 
         private static bool[,] GetMask(int radius)

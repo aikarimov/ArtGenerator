@@ -1,9 +1,5 @@
-﻿using ArtModel.ColorModel;
-using ArtModel.ColorModel.ColorSpaces;
-using ArtModel.Core.ArtificialCanvas;
-using ArtModel.Image.Matrix;
+﻿using ArtModel.Core.ArtificialCanvas;
 using System.Drawing;
-using System.Drawing.Imaging;
 
 namespace ArtModel.Core
 {
@@ -11,22 +7,13 @@ namespace ArtModel.Core
     {
         private ArtificialCanvasGenerator _artificialCanvasGenerator;
 
-        public CoreArtModel(ColorSpaceType colorSpaceType, Bitmap bitmap)
+        public CoreArtModel(Bitmap bitmap)
         {
-            MatrixBitmap inputMatrix = MatrixConverter.BitmapToMatrix(bitmap, colorSpaceType);
+            _artificialCanvasGenerator = new ArtificialCanvasGenerator(bitmap);
 
-            _artificialCanvasGenerator = new ArtificialCanvasGenerator(inputMatrix);
+            _artificialCanvasGenerator.IterateStrokes();
+
+            _artificialCanvasGenerator.EndIterations();
         }
-
-        public void CreateImage()
-        {
-
-        }
-
-        public IEnumerable<MatrixBitmap> GetArtificialCanvasIterative()
-        {
-            yield return _artificialCanvasGenerator.GetArtificialCanvas();
-        }
-
     }
 }

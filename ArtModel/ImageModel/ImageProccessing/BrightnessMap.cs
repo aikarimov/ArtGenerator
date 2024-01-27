@@ -1,9 +1,4 @@
-﻿using ArtModel.ColorModel;
-using ArtModel.Image.Matrix;
-using ArtModel.MathLib;
-using System.Drawing.Drawing2D;
-
-namespace ArtModel.ImageProccessing
+﻿namespace ArtModel.ImageModel.ImageProccessing
 {
     public class BrightnessMap
     {
@@ -27,9 +22,9 @@ namespace ArtModel.ImageProccessing
                         { -2, 0, 2 },
                         { -1, 0, 1 }};
         private static double[,] sobelY2 = {
-                        { -1, -2, -1 },
+                        { 1, 2, 1 },
                         { 0, 0, 0 },
-                        { 1, 2, 1 }};
+                        { -1, -2, -1 }};
         private static double[,] sobelX3 = {
                  { -0.5 * p1, 0, 0.5 * p1 },
                  {  p1 - 0.5, 0, 0.5 - p1 },
@@ -39,24 +34,20 @@ namespace ArtModel.ImageProccessing
                  {         0,        0,         0 },
                  {  0.5 * p1, 0.5 - p1,  0.5 * p1 }};
 
-        public static double[,] GetBrightnessMap(MatrixBitmap grayMatrix)
+        public static double[,] GetBrightnessMap(ArtBitmap bitmap)
         {
-            double[,] result = new double[grayMatrix.Height, grayMatrix.Width];
+            byte[,] gray = ImageFiltering.ToGrayScale(bitmap);
 
-            var dx = ImageFiltering.ApplyConvolution(grayMatrix, sobelX);
-            var dy = ImageFiltering.ApplyConvolution(grayMatrix, sobelY);
+            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX2);
+            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY2);
 
-            for (int x = 0; x < grayMatrix.Width; x++)
+            double[,] result = new double[bitmap.Height, bitmap.Width];
+
+            for (int x = 0; x < bitmap.Width; x++)
             {
-                for (int y = 0; y < grayMatrix.Height; y++)
+                for (int y = 0; y < bitmap.Height; y++)
                 {
-                    PixelData pixelX = dx[x, y];
-                    PixelData pixelY = dy[x, y];
-
-                    /*double value = Math.Sqrt(pixelX[0] * pixelX[0] + pixelY[0] * pixelY[0]);
-                    result[x, y] = new PixelData([(byte)Math.Clamp(value, 0, 255)]);*/
-
-                    result[x, y] = Math.Atan2(pixelY[0], pixelX[0]);
+                    result[y, x] = Math.Atan2(dy[y, x], dx[y, x]);
                 }
             }
 
