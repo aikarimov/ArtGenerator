@@ -41,42 +41,37 @@ namespace ArtModel.ImageModel.ImageProccessing
             return result;
         }
 
-        public static ArtBitmap ApplyConvolution(ArtBitmap artBitmap, double[,] kernel)
+        public static double[,] ApplyConvolution(double[,] core, double[,] kernel)
         {
-            int height = artBitmap.Height;
-            int width = artBitmap.Width;
+            int rows = core.GetLength(0);
+            int cols = core.GetLength(1);
 
-            ArtBitmap result = new ArtBitmap(width, height);
+            double[,] result = new double[rows, cols];
 
-            int kernelHeight = kernel.GetLength(0);
-            int kernelWidth = kernel.GetLength(1);
+            int kernelRows = kernel.GetLength(0);
+            int kernelColumns = kernel.GetLength(1);
 
-            int halfKernelHeight = kernelHeight / 2;
-            int halfKernelWidth = kernelWidth / 2;
+            int halfKernelRows = kernelRows / 2;
+            int halfKernelColumns = kernelColumns / 2;
 
-            // Обход главной матрицы
-            for (int y = 0; y < height; y++)
+            for (int y = 0; y < rows; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (int x = 0; x < cols; x++)
                 {
-                    //double[] sum = new double[components];
+                    double sum = 0.0;
 
-                    // Обход ядра
-                    for (int m = -halfKernelHeight; m <= halfKernelHeight; m++)
+                    for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
-                        for (int n = -halfKernelWidth; n <= halfKernelWidth; n++)
+                        for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
                         {
-                            int k_y = Math.Clamp(y + m, halfKernelHeight, height - halfKernelHeight - 1);
-                            int k_x = Math.Clamp(x + n, halfKernelWidth, width - halfKernelWidth - 1);
+                            int k_y = Math.Clamp(y + m, halfKernelRows, rows - halfKernelRows - 1);
+                            int k_x = Math.Clamp(x + n, halfKernelColumns, cols - halfKernelColumns - 1);
 
-                            /*for (int c = 0; c < components; c++)
-                            {
-                                sum[c] += matrix[k_x, k_y][c] * kernel[m + halfKernelHeight, n + halfKernelWidth];
-                            }*/
+                            sum += core[k_y, k_x] * kernel[m + halfKernelRows, n + halfKernelColumns];
                         }
                     }
 
-                    //result[x, y] = new PixelData(sum);
+                    result[y, x] = sum;
                 }
             }
 

@@ -23,6 +23,11 @@ namespace ArtModel.ImageModel
             LockBitmap();
         }
 
+        public ArtBitmap Copy()
+        {
+            return new ArtBitmap(((Bitmap)_bitmap.Clone()));
+        }
+
         public void LockBitmap()
         {
             Rectangle rect = new Rectangle(0, 0, _bitmap.Width, _bitmap.Height);

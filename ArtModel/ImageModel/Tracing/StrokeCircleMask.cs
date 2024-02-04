@@ -2,12 +2,12 @@
 {
     public struct CircleMaskResult
     {
-        public CircleMaskResult(List<(int x, int y)> coordinates)
+        public CircleMaskResult(HashSet<(int x, int y)> coordinates)
         {
             Coordinates = coordinates;
         }
 
-        public List<(int x, int y)> Coordinates { get; private set; }
+        public HashSet<(int x, int y)> Coordinates { get; private set; }
     }
 
     public static class StrokeCircleMask
@@ -26,7 +26,7 @@
         {
             bool[,] mask = GetMask(radius);
 
-            List<(int x, int y)> coordinates = new();
+            HashSet<(int x, int y)> coordinates = new();
 
             for (int i = -radius; i <= radius; i++)
             {

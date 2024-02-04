@@ -1,4 +1,7 @@
-﻿namespace ArtModel.ImageModel.ImageProccessing
+﻿using ArtModel.ImageProccessing;
+using System.Drawing;
+
+namespace ArtModel.ImageModel.ImageProccessing
 {
     public class BrightnessMap
     {
@@ -34,23 +37,42 @@
                  {         0,        0,         0 },
                  {  0.5 * p1, 0.5 - p1,  0.5 * p1 }};
 
-        public static double[,] GetBrightnessMap(ArtBitmap bitmap)
+        public static double[,] GetBrightnessMap(ArtBitmap origBm, double blurSigma)
         {
-            byte[,] gray = ImageFiltering.ToGrayScale(bitmap);
+            byte[,] gray = ImageFiltering.ToGrayScale(origBm);
 
             double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX2);
             double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY2);
 
-            double[,] result = new double[bitmap.Height, bitmap.Width];
+            double[,] result = new double[origBm.Height, origBm.Width];
+            ArtBitmap resMap = new ArtBitmap(origBm.Width, origBm.Height);
+            ArtBitmap edgeMap = new ArtBitmap(origBm.Width, origBm.Height);
 
-            for (int x = 0; x < bitmap.Width; x++)
+            for (int x = 0; x < origBm.Width; x++)
             {
-                for (int y = 0; y < bitmap.Height; y++)
+                for (int y = 0; y < origBm.Height; y++)
                 {
-                    result[y, x] = Math.Atan2(dy[y, x], dx[y, x]);
+                    double angle = Math.Atan2(dy[y, x], dx[y, x]);
+                    result[y, x] = angle;
                 }
             }
 
+            result = GaussianBlur.ApplyBlur(result, blurSigma);
+
+            for (int x = 0; x < origBm.Width; x++)
+            {
+                for (int y = 0; y < origBm.Height; y++)
+                {
+                    double angle = result[y, x];
+                    byte grayAngle = (byte)Math.Clamp(((angle + Math.PI) / (2 * Math.PI)) * 255, 0, 255);
+                    resMap[x, y] = Color.FromArgb(grayAngle, grayAngle, grayAngle);
+                }
+            }
+
+
+            //resMap.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output", "Grad");
+            //edgeMap.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output", "edgeMap");
+            resMap.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output", $"GradBlurred{blurSigma}");
             return result;
         }
     }

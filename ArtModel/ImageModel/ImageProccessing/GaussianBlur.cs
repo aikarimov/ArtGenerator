@@ -1,4 +1,6 @@
-﻿using System.Drawing.Drawing2D;
+﻿using ArtModel.ImageModel;
+using ArtModel.ImageModel.ImageProccessing;
+using System.Drawing;
 
 namespace ArtModel.ImageProccessing
 {
@@ -10,11 +12,11 @@ namespace ArtModel.ImageProccessing
             Vertical
         }
 
-       /* public static MatrixBitmap ApplyGaussianBlurToRGB(MatrixBitmap matrixImg, double sigma)
+        public static double[,] ApplyBlur(double[,] core, double sigma)
         {
             if (sigma == 0)
             {
-                return matrixImg;
+                return core;
             }
 
             int kernelSize = (int)Math.Ceiling(6 * sigma);
@@ -26,17 +28,11 @@ namespace ArtModel.ImageProccessing
             double[,] kernelX = Generate1dGaussianKernel(kernelSize, sigma, Direction.Horizontal);
             double[,] kernelY = Generate1dGaussianKernel(kernelSize, sigma, Direction.Vertical);
 
-            MatrixBitmap blurX = ApplyKernel(matrixImg, kernelX);
-            MatrixBitmap blurXY = ApplyKernel(blurX, kernelY);
+            double[,] blurX = ImageFiltering.ApplyConvolution(core, kernelX);
+            double[,] blurXY = ImageFiltering.ApplyConvolution(blurX, kernelY);
 
             return blurXY;
         }
-
-        static MatrixBitmap ApplyKernel(MatrixBitmap matrix, double[,] kernel)
-        {
-            throw new NotImplementedException();
-            //return ImageFiltering.ApplyConvolution(matrix, kernel);
-        }*/
 
         private static double[,] Generate1dGaussianKernel(int kernelSize, double sigma, Direction direction)
         {

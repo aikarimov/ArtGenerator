@@ -1,6 +1,7 @@
 ﻿using ArtModel.ImageModel;
 using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.ImageModel.Tracing;
+using ArtModel.ImageProccessing;
 using System.Drawing;
 using System.IO;
 
@@ -16,81 +17,35 @@ namespace ArtModel.Core.ArtificialCanvas
         private ArtBitmap _skeletonCanvas;
         private ArtBitmap _errorCanvas;
 
-        private Random _random = new Random(/*Guid.NewGuid().GetHashCode()*/ 1);
-
-        private Dictionary<(int, int), bool> _allCoordinates;
-
         public ArtificialCanvasGenerator(Bitmap bitmap)
         {
             _originalCanvas = new ArtBitmap(bitmap);
             _originalCanvas.Save(outputPath, "ArtOriginal");
 
             _artificialCanvas = new ArtBitmap(bitmap.Width, bitmap.Height);
-
-            _allCoordinates = new Dictionary<(int, int), bool>();
-            InitCoordinates();
-
-            void InitCoordinates()
-            {
-                for (int x = 0; x < _originalCanvas.Width; x++)
-                {
-                    for (int y = 0; y < _originalCanvas.Height; y++)
-                    {
-                        _allCoordinates.Add((x, y), true);
-                    }
-                }
-            }
+            PaintWhite(_artificialCanvas);
         }
 
         public void IterateStrokes()
         {
-            double[,] brightnessMap = BrightnessMap.GetBrightnessMap(_originalCanvas);
+            Tracer tracer = new Tracer(_originalCanvas, _artificialCanvas, TracerSerializer.DefaultTracer);
 
-            int counter = 0;
+            tracer.GenerateArtByLayers();
 
-            while (GetFromPixelPool(out var coordinates))
+
+
+
+
+        }
+
+        private void PaintWhite(ArtBitmap artBitmap)
+        {
+            for (int x = 0; x < artBitmap.Width; x++)
             {
-                int x = coordinates.x;
-                int y = coordinates.y;
-
-                TracingResult path = Tracer.GetIterativeTracePath(_originalCanvas, (x, y), brightnessMap[y, x]);
-                GetFromPixelPool(path.Coordinates);
-
-                WritePixels(path.Coordinates, path.MeanColor);
-
-                if (counter % 2500 == 0)
+                for (int y = 0; y < artBitmap.Height; y++)
                 {
-                    _artificialCanvas.Save(outputPath, "Artificial" + counter);
+                    artBitmap[x, y] = Color.White;
                 }
-
-                counter++;
-            }
-
-            _artificialCanvas.Save(outputPath, "Artificial");
-        }
-
-        public void GetFromPixelPool(List<(int, int)> pixels)
-        {
-            foreach (var pixel in pixels)
-            {
-                _allCoordinates.Remove(pixel);
-            }
-        }
-
-        private bool GetFromPixelPool(out (int x, int y) coords)
-        {
-            int rand = _random.Next(_allCoordinates.Count);
-            coords = _allCoordinates.ElementAt(rand).Key;
-            _allCoordinates.Remove(coords);
-
-            return (_allCoordinates.Count > 0);
-        }
-
-        private void WritePixels(List<(int x, int y)> coordonates, Color color)
-        {
-            foreach (var c in coordonates)
-            {
-                _artificialCanvas[c.x, c.y] = color;
             }
         }
 
