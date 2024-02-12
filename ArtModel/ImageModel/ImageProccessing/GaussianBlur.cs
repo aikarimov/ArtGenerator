@@ -1,8 +1,4 @@
-﻿using ArtModel.ImageModel;
-using ArtModel.ImageModel.ImageProccessing;
-using System.Drawing;
-
-namespace ArtModel.ImageProccessing
+﻿namespace ArtModel.ImageModel.ImageProccessing
 {
     public class GaussianBlur
     {
@@ -30,6 +26,28 @@ namespace ArtModel.ImageProccessing
 
             double[,] blurX = ImageFiltering.ApplyConvolution(core, kernelX);
             double[,] blurXY = ImageFiltering.ApplyConvolution(blurX, kernelY);
+
+            return blurXY;
+        }
+
+        public static ArtBitmap ApplyBlur(ArtBitmap bitmap, double sigma)
+        {
+            if (sigma == 0)
+            {
+                return bitmap;
+            }
+
+            int kernelSize = (int)Math.Ceiling(6 * sigma);
+            if (kernelSize % 2 == 0)
+            {
+                kernelSize++;
+            }
+
+            double[,] kernelX = Generate1dGaussianKernel(kernelSize, sigma, Direction.Horizontal);
+            double[,] kernelY = Generate1dGaussianKernel(kernelSize, sigma, Direction.Vertical);
+
+            ArtBitmap blurX = ImageFiltering.ApplyConvolution(bitmap, kernelX);
+            ArtBitmap blurXY = ImageFiltering.ApplyConvolution(blurX, kernelY);
 
             return blurXY;
         }

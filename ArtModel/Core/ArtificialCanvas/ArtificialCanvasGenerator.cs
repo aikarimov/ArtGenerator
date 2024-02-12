@@ -1,41 +1,35 @@
 ﻿using ArtModel.ImageModel;
 using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.ImageModel.Tracing;
-using ArtModel.ImageProccessing;
 using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
+using System.IO.Pipes;
 
 namespace ArtModel.Core.ArtificialCanvas
 {
     public class ArtificialCanvasGenerator
     {
-        private string outputPath = "C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output";
+        private string outputPath;
 
         private ArtBitmap _originalCanvas;
-        private ArtBitmap _artificialCanvas;
         private ArtBitmap _shapesCanvas;
         private ArtBitmap _skeletonCanvas;
         private ArtBitmap _errorCanvas;
 
-        public ArtificialCanvasGenerator(Bitmap bitmap)
+        public ArtificialCanvasGenerator(Bitmap bitmap, PathSettings pathSettings)
         {
+            outputPath = pathSettings.OutputPath;
+
             _originalCanvas = new ArtBitmap(bitmap);
             _originalCanvas.Save(outputPath, "ArtOriginal");
-
-            _artificialCanvas = new ArtBitmap(bitmap.Width, bitmap.Height);
-            PaintWhite(_artificialCanvas);
         }
 
         public void IterateStrokes()
         {
-            Tracer tracer = new Tracer(_originalCanvas, _artificialCanvas, TracerSerializer.DefaultTracer);
+            Tracer tracer = new Tracer(_originalCanvas, TracerSerializer.DefaultTracer, outputPath);
 
             tracer.GenerateArtByLayers();
-
-
-
-
-
         }
 
         private void PaintWhite(ArtBitmap artBitmap)
@@ -52,7 +46,6 @@ namespace ArtModel.Core.ArtificialCanvas
         public void EndIterations()
         {
             _originalCanvas.UnlockBitmap();
-            _artificialCanvas.UnlockBitmap();
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using ArtViewModel;
+using Microsoft.Win32;
 using System.Drawing;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 
 namespace ArtGenerator
 {
@@ -10,29 +12,45 @@ namespace ArtGenerator
     /// </summary>
     public partial class MainWindow : Window
     {
-        private ViewModelController viewModelController;
-
-       private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\kk.jpg";
-       //private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\ball.png";
-        //private string path = @"C:\Users\skura\source\repos\ArtGenerator\ArtGenerator\Resources\mountains.jpg";
-
-
+        private HomeViewModel viewModelController;
 
         public MainWindow()
         {
             InitializeComponent();
-
-            viewModelController = new ViewModelController();
         }
 
-        private void Button_Click_1(object sender, RoutedEventArgs e)
+        private void OpenFileDialog()
         {
-            using (FileStream fileStream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.InitialDirectory = inputPath.Text;
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string filePath = openFileDialog.FileName;
+                ProcessSelectedFile(filePath);
+            }
+        }
+
+        private void ProcessSelectedFile(string filePath)
+        {
+            viewModelController = new HomeViewModel();
+
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
                 Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
 
-                viewModelController.ProcessImage(inputBitmap);
+                viewModelController.ProcessImage(inputBitmap, new ArtModel.Core.PathSettings
+                {
+                    InputPath = inputPath.Text,
+                    OutputPath = outputPath.Text
+                });
             }
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog();
+        }
+
     }
 }

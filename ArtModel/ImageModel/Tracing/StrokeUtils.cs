@@ -102,17 +102,10 @@ namespace ArtModel.ImageModel.Tracing
 
         public Color GetMeanColor()
         {
-            if (counter == 0)
-            {
-                return Color.FromArgb(0, 0, 0);
-            }
-            else
-            {
-                return Color.FromArgb(
-                    Math.Clamp(R_count / counter, 0, 255),
-                    Math.Clamp(G_count / counter, 0, 255),
-                    Math.Clamp(B_count / counter, 0, 255));
-            }
+            return Color.FromArgb(byte.MaxValue,
+                Math.Clamp(R_count / counter, 0, 255),
+                Math.Clamp(G_count / counter, 0, 255),
+                Math.Clamp(B_count / counter, 0, 255));
         }
     }
 }

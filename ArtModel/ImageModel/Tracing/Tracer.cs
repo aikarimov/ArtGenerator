@@ -1,13 +1,6 @@
 ﻿using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.MathLib;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data;
 using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using static ArtModel.ImageModel.Tracing.GenerationData;
 
 namespace ArtModel.ImageModel.Tracing
@@ -23,6 +16,10 @@ namespace ArtModel.ImageModel.Tracing
         public HashSet<(int x, int y)> Coordinates;
         public Color MeanColor;
         public double Dispersion;
+
+
+        public int Length;
+        public (int x, int y) EndPoint;
     }
 
     public struct TracingResult
@@ -47,6 +44,7 @@ namespace ArtModel.ImageModel.Tracing
         public HashSet<(int x, int y)> Coordinates;
         public MeanColorCalculator Calculator;
         public int Radius;
+        public double Dispersion;
     }
 
     public struct GenerationData
@@ -54,16 +52,16 @@ namespace ArtModel.ImageModel.Tracing
         public struct SingleGenerationData
         {
             public double BlurSigma { get; init; } = 1;
-            public int MinWidth { get; init; } = 1;
-            public int MaxWidth { get; init; } = 1;
+            public (int min, int max) StrokeWidth { get; init; } = (4, 40);
+            public (int min, int max) StrokeLength { get; init; } = (0, 50);
             public int LocalIterations { get; init; } = 1000;
             public int DispersionTolerance { get; init; } = 300;
 
-            public SingleGenerationData(double sigma, int min_w, int max_w, int iterations, int dispersion)
+            public SingleGenerationData(double sigma, (int, int) width, (int, int) length, int iterations, int dispersion)
             {
                 BlurSigma = sigma;
-                MinWidth = min_w;
-                MaxWidth = max_w;
+                StrokeWidth = width;
+                StrokeLength = length;
                 LocalIterations = iterations;
                 DispersionTolerance = dispersion;
             }
@@ -73,7 +71,7 @@ namespace ArtModel.ImageModel.Tracing
 
         public Dictionary<int, SingleGenerationData> Data { get; init; }
 
-        public GenerationData(int generations, int maxRadius, int width, int height)
+        public GenerationData(int generations, int width, int height)
         {
             Generations = generations;
             Data = new Dictionary<int, SingleGenerationData>();
@@ -87,13 +85,14 @@ namespace ArtModel.ImageModel.Tracing
                 double factor_down = 1 - (gen + 1) * interval;
                 double factor_scaled = 1 - (gen * 1.0 / generations);
 
-                double blurSigma = Math.Round(maxRadius * factor_scaled);
-                int minWidth = Convert.ToInt32(maxRadius * factor_down);
-                int maxWidth = Convert.ToInt32(maxRadius * factor_up);
-                int localIterations = Convert.ToInt32((width * height) / (Math.Pow((2 * maxWidth + 1), 2)));
-                int dispersion = Convert.ToInt32(1500 * factor_up);
+                double blurSigma = Math.Round(40 * factor_scaled);
+                (int, int) StrokeWidth = (Convert.ToInt32(40 * factor_down), Convert.ToInt32(40 * factor_up));
+                (int, int) StrokeLength = (0, 50);
 
-                Data.Add(gen, new SingleGenerationData(blurSigma, minWidth, maxWidth, localIterations, dispersion));
+                int localIterations = Convert.ToInt32((width * height) / (Math.Pow((StrokeWidth.Item2 + 1), 2.5)));
+                int dispersion = Convert.ToInt32(1500);
+
+                Data.Add(gen, new SingleGenerationData(blurSigma, StrokeWidth, StrokeLength, localIterations, dispersion));
             }
         }
     }
@@ -105,7 +104,7 @@ namespace ArtModel.ImageModel.Tracing
             Genetaions = 7,
             BrushRadius = (3, 40),
             StrokeLength = (0, 50),
-            SegmentsCount = (0, 3),
+            SegmentsCount = (1, 3),
         };
 
         public int Genetaions { get; init; }
@@ -119,138 +118,149 @@ namespace ArtModel.ImageModel.Tracing
 
     public class Tracer
     {
-        private string outputPath = "C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\Output";
-
         public GenerationData _generationData { get; private set; }
 
         private int Genetaions { get; init; }
 
-        private (int min, int max) BrushRadius { get; init; }
+        /*private (int min, int max) BrushRadius { get; init; }
 
-        private (int min, int max) StrokeLength { get; init; }
+        private (int min, int max) StrokeLength { get; init; }*/
 
         private (int min, int max) SegmentsCount { get; init; }
 
         private ArtBitmap _origBm;
 
-        private ArtBitmap _artBm;
+        private string outpath;
 
-        private int _randomSeed = Guid.NewGuid().GetHashCode();
-
-        public Tracer(ArtBitmap originalCanvas, ArtBitmap artificialCanvas, TracerSerializer tracerSerializer)
+        public Tracer(ArtBitmap originalCanvas, TracerSerializer tracerSerializer, string outputPath)
         {
+            outpath = outputPath;
+
             Genetaions = tracerSerializer.Genetaions;
-            BrushRadius = tracerSerializer.BrushRadius;
-            StrokeLength = tracerSerializer.StrokeLength;
+            //BrushRadius = tracerSerializer.BrushRadius;
+            //StrokeLength = tracerSerializer.StrokeLength;
             SegmentsCount = tracerSerializer.SegmentsCount;
 
             _origBm = originalCanvas;
-            _artBm = artificialCanvas;
 
-            _generationData = new GenerationData(Genetaions, BrushRadius.max, originalCanvas.Width, originalCanvas.Height);
+            _generationData = new GenerationData(Genetaions, originalCanvas.Width, originalCanvas.Height);
         }
 
         public void GenerateArtByLayers()
         {
-            // Поколения
+            ArtBitmap artificial = new ArtBitmap(_origBm.Width, _origBm.Height);
+
+            double[,] brightnessMap = BrightnessMap.GetBrightnessMap(_origBm);
+
             for (int gen = 0; gen < Genetaions; gen++)
             {
                 SingleGenerationData localData = _generationData.Data[gen];
-
-                RandomPoolGenerator pool = new RandomPoolGenerator(_origBm.Width, _origBm.Height, _randomSeed);
-
-                double[,] brightnessMap = BrightnessMap.GetBrightnessMap(_origBm, localData.BlurSigma);
-
-                int counter = 0;
-                // Итерации в рамках поколения
+                RandomPoolGenerator pool = new RandomPoolGenerator(_origBm.Width, _origBm.Height);
+                double[,] blurredBrightnessMap = GaussianBlur.ApplyBlur(brightnessMap, localData.BlurSigma);
                 for (int iteration = 0; iteration < localData.LocalIterations; iteration++)
                 {
-                    pool.GetFromPool(out var coordinates);
-                    int x = coordinates.x;
-                    int y = coordinates.y;
 
-                    TracingResult path = GetSegmentedTracePath(gen, (x, y), brightnessMap);
-                    pool.RemoveFromPool(path.Coordinates);
-                    WritePixels(path.Coordinates, path.MeanColor);
 
-                    if (counter % 100 == 0)
+                    if (pool.PoolAvaliable())
                     {
-                        _artBm.Save(outputPath, "Artificial" + counter);
+                        var coordinates = pool.GetFromPool();
+                        int x = coordinates.x;
+                        int y = coordinates.y;
+
+
+                        TracingResult path = GetSegmentedTracePath(localData, _origBm, (x, y), blurredBrightnessMap);
+                        pool.RemoveFromPool(path.Coordinates);
+                        WritePixels(artificial, path.Coordinates, path.MeanColor);
                     }
-                    counter++;
+                    else
+                    {
+                        break;
+                    }
                 }
 
 
-                _artBm.Save(outputPath, $"Generation_{gen}");
+                artificial.Save(outpath, $"Generation_{gen}");
             }
         }
 
-        public TracingResult GetSegmentedTracePath(int genNum, (int x, int y) p1, double[,] brightnessMap)
+        public TracingResult GetSegmentedTracePath(
+            SingleGenerationData data,
+            ArtBitmap bitmap,
+            (int x, int y) startingPoint,
+            double[,] blurredBrightnessMap)
         {
-            int r_min = _generationData.Data[genNum].MinWidth;
-            int r_max = _generationData.Data[genNum].MaxWidth;
-            double tolerance = _generationData.Data[genNum].DispersionTolerance;
+            double tolerance = data.DispersionTolerance;
+            int lenMin = data.StrokeLength.min;
+            int lenMax = data.StrokeLength.max;
 
-            ROIData roi = GetROI(genNum, p1);
+            ROIData roi = GetROI(data, bitmap, startingPoint);
 
             MeanColorCalculator segmentedCalculator = roi.Calculator;
             HashSet<(int x, int y)> segmentedPathCoordinates = roi.Coordinates;
 
-            //int segments = SegmentsCount.max;
-            int segmentsMax = 2;
+            (int x, int y) currentSegmentPoint = startingPoint;
 
-
-
-            (int x, int y) currentSegmentPoint = p1;
-            Color currentMeanColor = Color.White;
-
-
-
-            for (int seg = 0; seg <= segmentsMax; seg++)
+            // Построение каждого сегмента
+            for (int seg = SegmentsCount.min; seg <= SegmentsCount.max; seg++)
             {
-                // Добавить двоичный поиск
-                int strokeLength = StrokeLength.max;
 
-                while (strokeLength > StrokeLength.min)
+                Task[] tasks = new Task[lenMax - lenMin + 1];
+                TracingPath[] tracingPaths = new TracingPath[lenMax - lenMin + 1];
+                double angle = blurredBrightnessMap[currentSegmentPoint.y, currentSegmentPoint.x];
+
+                for (int len = lenMin; len <= lenMax; len++)
                 {
-                    double angle = brightnessMap[currentSegmentPoint.y, currentSegmentPoint.x];
-                    (int x, int y) p2 = PointOffset(currentSegmentPoint, angle, strokeLength);
-                    TracingPath path = GetPath(currentSegmentPoint, p2, segmentedPathCoordinates, segmentedCalculator, roi.Radius);
+                    int index = len - lenMin;
+                    int currLen = len;
 
-                    HashSet<(int x, int y)> newPath = path.Coordinates;
-                    MeanColorCalculator newCalc = path.Calculator;
-
-                    // Дисперсия в норме, значит мазок сегмента можно закончить (т.к. идём с конца).
-                    if (path.Dispersion < tolerance)
+                    tasks[index] = Task.Run(() =>
                     {
-                        segmentedPathCoordinates = newPath;
-                        segmentedCalculator = newCalc;
-                        currentSegmentPoint = p2;
-                        currentMeanColor = path.MeanColor;
-                        break;
-                    }
-                    else
-                    {
-                        strokeLength -= 1;
+                        (int x, int y) offsetedPoint = PointOffsetNormal(currentSegmentPoint, angle, currLen);
+                        TracingPath path = GetPath(currentSegmentPoint, offsetedPoint, segmentedPathCoordinates, segmentedCalculator, roi.Radius);
 
-                        if (strokeLength == StrokeLength.min)
+                        path.Length = currLen;
+                        path.EndPoint = offsetedPoint;
+
+                        tracingPaths[index] = path;
+                    });
+                }
+
+                Task.WaitAll(tasks);
+
+                for (int i = tracingPaths.Length - 1; i >= 0; i--)
+                {
+                    TracingPath tpath = tracingPaths[i];
+                    if (tpath.Dispersion <= tolerance)
+                    {
+                        // Значит, что минимальная дисперсия достигнута на 0-м мазке, а значит его нужно окончить
+                        if (i == 0)
                         {
                             return new TracingResult(segmentedPathCoordinates, segmentedCalculator.GetMeanColor());
                         }
+                        else
+                        {
+                            segmentedCalculator = tpath.Calculator;
+                            segmentedPathCoordinates = tpath.Coordinates;
+
+                            currentSegmentPoint = tpath.EndPoint;
+
+                            break;
+                        }
+
                     }
                 }
             }
 
             return new TracingResult(segmentedPathCoordinates, segmentedCalculator.GetMeanColor());
-        }
 
-        private (int x, int y) PointOffset((int x, int y) p, double angle, double length)
-        {
-            angle = (angle + Math.PI / 2) % (2 * Math.PI);
+            (int x, int y) PointOffsetNormal((int x, int y) p, double angle, double length)
+            {
+                angle = (angle + Math.PI / 2) % (2 * Math.PI);
 
-            return (
-                Math.Clamp(p.x + (int)(length * Math.Cos(angle)), 0, _origBm.Width - 1),
-                Math.Clamp(p.y + (int)(length * Math.Sin(angle)), 0, _origBm.Height - 1));
+                return (
+                    Math.Clamp(p.x + (int)(length * Math.Cos(angle)), 0, bitmap.Width - 1),
+                    Math.Clamp(p.y + (int)(length * Math.Sin(angle)), 0, bitmap.Height - 1));
+            }
         }
 
         private TracingPath GetPath(
@@ -260,8 +270,7 @@ namespace ArtModel.ImageModel.Tracing
             MeanColorCalculator segmentedCalc,
             int radius)
         {
-            MeanColorCalculator localCalc = segmentedCalc.Copy();
-
+            MeanColorCalculator localCalculator = segmentedCalc.Copy();
             HashSet<(int x, int y)> localPathCoordinates = new();
             localPathCoordinates.UnionWith(segmentedPathCoordinates);
 
@@ -283,7 +292,7 @@ namespace ArtModel.ImageModel.Tracing
                         if (!localPathCoordinates.Contains((c.x, c.y)))
                         {
                             localPathCoordinates.Add((c.x, c.y));
-                            localCalc.AddColor(_origBm[c.x, c.y]);
+                            localCalculator.AddColor(_origBm[c.x, c.y]);
                         }
                     }
                 }
@@ -302,19 +311,9 @@ namespace ArtModel.ImageModel.Tracing
                     err = err + dx;
                     p1.y = p1.y + sy;
                 }
-
-                // Пропуск пикселей
-                /*for (int i = 0; i < StepOffset - 1; i++)
-                {
-                    if (p1.x == p2.x && p1.y == p2.y)
-                        break;
-
-                    p1.x += sx;
-                    p1.y += sy;
-                }*/
             }
 
-            Color meanColor = localCalc.GetMeanColor();
+            Color meanColor = localCalculator.GetMeanColor();
             double dispersion = StrokeUtils.GetDispersion(_origBm, localPathCoordinates, meanColor);
 
             return new TracingPath()
@@ -322,65 +321,61 @@ namespace ArtModel.ImageModel.Tracing
                 Coordinates = localPathCoordinates,
                 MeanColor = meanColor,
                 Dispersion = dispersion,
-                Calculator = localCalc
+                Calculator = localCalculator
             };
         }
 
-        private ROIData GetROI(int genNum, (int x, int y) point)
+        private ROIData GetROI(SingleGenerationData data, ArtBitmap bitmap, (int x, int y) point)
         {
-            // В будущем добавить двоичный поиск
-
             int x = point.x;
             int y = point.y;
+            int r_min = data.StrokeWidth.min;
+            int r_max = data.StrokeWidth.max;
+            double tolerance = data.DispersionTolerance;
 
-            int r_min = _generationData.Data[genNum].MinWidth;
-            int r_max = _generationData.Data[genNum].MaxWidth;
-            double tolerance = _generationData.Data[genNum].DispersionTolerance;
+            Task[] tasks = new Task[r_max - r_min + 1];
+            ROIData[] rois = new ROIData[r_max - r_min + 1];
 
-            int r_curr = r_max;
-
-            while (r_curr >= r_min)
+            for (int radius = r_min; radius <= r_max; radius++)
             {
-                CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(_origBm, x, y, r_curr);
-                MeanColorCalculator calc = new MeanColorCalculator(_origBm, circle.Coordinates);
-                double dispesion = StrokeUtils.GetDispersion(_origBm, circle.Coordinates, calc.GetMeanColor());
+                int index = radius - r_min;
+                int rad = radius;
 
-                if (dispesion < tolerance || r_curr == r_min)
+                tasks[index] = Task.Run(() =>
                 {
-                    return new ROIData()
+                    CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, x, y, rad);
+                    MeanColorCalculator calc = new MeanColorCalculator(bitmap, circle.Coordinates);
+                    double dispesion = StrokeUtils.GetDispersion(bitmap, circle.Coordinates, calc.GetMeanColor());
+                    rois[index] = new ROIData()
                     {
                         Coordinates = circle.Coordinates,
                         Calculator = calc,
-                        Radius = r_curr
+                        Radius = rad,
+                        Dispersion = dispesion
                     };
-                }
-                else
+                });
+            }
+
+            Task.WaitAll(tasks);
+
+            for (int i = rois.Length - 1; i >= 0; i--)
+            {
+                ROIData ro = rois[i];
+                if (ro.Dispersion <= tolerance)
                 {
-                    r_curr -= 1;
+                    return ro;
                 }
             }
 
-            throw new NotImplementedException();
-
-            int MiddleRadiusUp(int r_cur, int r_max)
-            {
-                return Convert.ToInt32(r_cur + (r_max - r_cur) / 2);
-            }
-
-            int MiddleRadiusDown(int r_cur, int r_min)
-            {
-                return Convert.ToInt32(r_cur - (r_cur - r_min) / 2);
-            }
+            return rois[0];
         }
 
-        private void WritePixels(HashSet<(int x, int y)> coordonates, Color color)
+        private void WritePixels(ArtBitmap map, HashSet<(int x, int y)> coordonates, Color color)
         {
             foreach (var c in coordonates)
             {
-                _artBm[c.x, c.y] = color;
+                map[c.x, c.y] = color;
             }
         }
-
-
     }
 }

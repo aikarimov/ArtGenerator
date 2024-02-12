@@ -1,31 +1,51 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
+using System.Numerics;
 
 namespace ArtModel.ImageModel
 {
     public unsafe class ArtBitmap
     {
         private Bitmap _bitmap;
+
         private BitmapData _bitmapData;
+
         private unsafe byte* _pixelData;
-        public int Width => _bitmap.Width;
-        public int Height => _bitmap.Height;
+
+        public int Width;
+
+        public int Height;
 
         public ArtBitmap(Bitmap bitmap)
         {
             _bitmap = bitmap;
+            Width = _bitmap.Width;
+            Height = _bitmap.Height;
             LockBitmap();
         }
 
-        public ArtBitmap(int width, int height)
+        public ArtBitmap(int width, int height, bool transparent = false)
         {
             _bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            if (transparent)
+            {
+                using (Graphics g = Graphics.FromImage(_bitmap))
+                {
+                    g.Clear(Color.Transparent);
+                }
+            }
+            Width = width;
+            Height = height;
             LockBitmap();
         }
 
         public ArtBitmap Copy()
         {
-            return new ArtBitmap(((Bitmap)_bitmap.Clone()));
+            ArtBitmap artBitmap = new ArtBitmap((Bitmap)_bitmap.Clone());
+            Width = _bitmap.Width;
+            Height = _bitmap.Height;
+
+            return artBitmap;
         }
 
         public void LockBitmap()
@@ -65,10 +85,6 @@ namespace ArtModel.ImageModel
                     _pixelData[position] = value.B;
                     _pixelData[position + 1] = value.G;
                     _pixelData[position + 2] = value.R;
-                }
-                else
-                {
-                    //throw new IndexOutOfRangeException("Coordinates are outside the image boundaries.");
                 }
             }
         }
