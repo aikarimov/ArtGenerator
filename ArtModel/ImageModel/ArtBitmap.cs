@@ -6,7 +6,7 @@ namespace ArtModel.ImageModel
 {
     public unsafe class ArtBitmap
     {
-        private Bitmap _bitmap;
+        protected Bitmap _bitmap;
 
         private BitmapData _bitmapData;
 
@@ -93,5 +93,6 @@ namespace ArtModel.ImageModel
         {
             _bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
         }
+  
     }
 }

@@ -1,4 +1,5 @@
 ﻿using ArtModel.Core.ArtificialCanvas;
+using ArtModel.StrokeLib;
 using System.Drawing;
 
 namespace ArtModel.Core
@@ -20,6 +21,11 @@ namespace ArtModel.Core
 
         public void Iterate()
         {
+            
+            //LibReader.ProcessFiles("C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\StrokeLib\\SourceLib");
+
+
+
             _artificialCanvasGenerator.IterateStrokes();
 
             _artificialCanvasGenerator.EndIterations();

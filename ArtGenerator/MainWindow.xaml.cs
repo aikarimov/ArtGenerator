@@ -13,7 +13,7 @@ namespace ArtGenerator
     public partial class MainWindow : Window
     {
         private HomeViewModel viewModelController;
-
+ 
         public MainWindow()
         {
             InitializeComponent();
@@ -49,7 +49,8 @@ namespace ArtGenerator
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            OpenFileDialog();
+            //popupMenu.IsOpen = true;
+           OpenFileDialog();
         }
 
     }

@@ -7,41 +7,43 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
         Title="MainWindow" Height="900" Width="1600">
-    <Grid>
+
+    <Grid Background="LightGray">
         <Grid.RowDefinitions>
-            <RowDefinition Height="100"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="200"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="100"/>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="300"/>
         </Grid.ColumnDefinitions>
-        <Button Content="Выбрать файл" Background="LightGray" FontSize="20" Grid.Column="2" Grid.Row="2" Margin="30,30,30,30" Click="Button_Click" />
+        <Button Content="Новый файл" Background="SlateGray" FontSize="20" Grid.Column="1" Grid.Row="1" Margin="32,76,32,60" Click="Button_Click" />
         <TextBox x:Name="inputPath" 
-                 HorizontalAlignment="Left" 
-                 Margin="41,45,0,0" 
-                 Grid.Row="2" 
-                 Grid.Column="1" 
-                 TextWrapping="Wrap" 
-                 Text="C:\Users\skura\source\repos\ArtGenerator\Input" 
-                 VerticalAlignment="Top" 
-                 Width="640" 
-                 Height="42" 
-                 FontSize="22"/>
+              HorizontalAlignment="Left" 
+              Margin="39,40,0,0" 
+              TextWrapping="Wrap" 
+              Text="C:\Users\skura\source\repos\ArtGenerator\Input" 
+              VerticalAlignment="Top" 
+              Width="640" 
+              Height="42" 
+              FontSize="22" Grid.Row="1"/>
         <TextBox x:Name="outputPath" 
-                 HorizontalAlignment="Left" 
-                 Margin="41,115,0,0" 
-                 Grid.Row="2" 
-                 Grid.Column="1" 
-                 TextWrapping="Wrap" 
-                 Text="C:\Users\skura\source\repos\ArtGenerator\Output\" 
-                 VerticalAlignment="Top" 
-                 Width="640" 
-                 Height="42" 
-                 FontSize="22"/>
+              HorizontalAlignment="Left" 
+              Margin="39,119,0,0" 
+              Grid.Row="1" 
+              TextWrapping="Wrap" 
+              Text="C:\Users\skura\source\repos\ArtGenerator\Output\" 
+              VerticalAlignment="Top" 
+              Width="640" 
+              Height="42" 
+              FontSize="22"/>
+        <Popup x:Name="popupMenu" Placement="Center" StaysOpen="False">
+            <StackPanel Background="White" Width="800" Height="600">
+                <!-- Здесь вы можете разместить другие элементы управления -->
+                <Button Content="Кнопка 1"/>
+                <Button Content="Кнопка 2"/>
+                <!-- ... -->
+            </StackPanel>
+        </Popup>
     </Grid>
-
-
 </Window>

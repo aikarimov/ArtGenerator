@@ -18,7 +18,7 @@
                 }
             }
 
-            _random = new Random();
+            _random = new Random(1);
         }
 
         public void RemoveFromPool(HashSet<(int, int)> pixels)
@@ -27,6 +27,11 @@
             {
                 _coordsData.Remove(pixel);
             }
+        }
+
+        public void RemoveFromPool((int, int) pixel)
+        {
+            _coordsData.Remove(pixel);
         }
 
         public bool PoolAvaliable()

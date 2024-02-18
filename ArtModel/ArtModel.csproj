@@ -8,11 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="StrokeLib\Images\**" />
+    <EmbeddedResource Remove="StrokeLib\Images\**" />
+    <None Remove="StrokeLib\Images\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="StrokeLib\Images\" />
+    <Folder Include="ImageModel\Extentions\" />
   </ItemGroup>
 
 </Project>

@@ -17,4 +17,8 @@
     <ProjectReference Include="..\ArtViewModel\ArtViewModel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Views\" />
+  </ItemGroup>
+
 </Project>

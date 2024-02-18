@@ -4,7 +4,7 @@ namespace ArtModel.StrokeLib
 {
     public class StrokeReader
     {
-        public static Bitmap ReadStroke(Bitmap original)
+        public static Bitmap ReadStrokeCropped(Bitmap original)
         {
             ConvertToGrayScale(ref original);
             return CropImage(original, GetContentRectangle(original));
