@@ -1,6 +1,7 @@
 ﻿using ArtModel.Core.ArtificialCanvas;
 using ArtModel.StrokeLib;
 using System.Drawing;
+using System.Text.Json;
 
 namespace ArtModel.Core
 {
@@ -14,18 +15,14 @@ namespace ArtModel.Core
     {
         private ArtificialCanvasGenerator _artificialCanvasGenerator;
 
-        public CoreArtModel(Bitmap bitmap, PathSettings pathSettings)
+        public CoreArtModel(Bitmap bitmap, ArtModelSerializer serializer, PathSettings pathSettings)
         {
-            _artificialCanvasGenerator = new ArtificialCanvasGenerator(bitmap, pathSettings);   
+            _artificialCanvasGenerator = new ArtificialCanvasGenerator(bitmap, serializer, pathSettings);
+
         }
 
         public void Iterate()
         {
-            
-            //LibReader.ProcessFiles("C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\StrokeLib\\SourceLib");
-
-
-
             _artificialCanvasGenerator.IterateStrokes();
 
             _artificialCanvasGenerator.EndIterations();

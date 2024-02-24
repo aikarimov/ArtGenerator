@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ArtModel.ImageModel.Tracing.Circle
+namespace ArtModel.Tracing
 {
     public interface ITracingResult
     {

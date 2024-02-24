@@ -1,4 +1,6 @@
-﻿namespace ArtModel.ImageModel.ImageProccessing
+﻿using ArtModel.ImageProccessing;
+
+namespace ArtModel.ImageModel.ImageProccessing
 {
     public class GaussianBlur
     {

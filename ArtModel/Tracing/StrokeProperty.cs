@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ArtModel.ImageModel.Tracing
+namespace ArtModel.Tracing
 {
     public enum StrokeProperty
     {

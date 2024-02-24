@@ -3,44 +3,44 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static ArtModel.ImageModel.Tracing.GenerationData;
+using ArtModel.Core;
+using ArtModel.ImageProccessing;
 
-namespace ArtModel.ImageModel.Tracing
+namespace ArtModel.Tracing
 {
     public struct CircleTracingResult
     {
-        public CircleTracingResult()
-        {
-
-        }
-
         public HashSet<(int x, int y)> Coordinates;
+
         public MeanColorCalculator Calculator;
-        public int Radius;
+
+        public int Width;
+
         public double Dispersion;
     }
 
     public class CircleTracer
     {
-        public static CircleTracingResult TraceIterative(SingleGenerationData genData, ArtBitmap bitmap, (int x, int y) point)
+        public static CircleTracingResult TraceIterative(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) point)
         {
             int x = point.x;
             int y = point.y;
-            int r_min = genData.StrokeWidth.min;
-            int r_max = genData.StrokeWidth.max;
-            double tolerance = genData.Dispersion;
+            int r_min = genData.StrokeWidth_Min / 2;
+            int r_max = genData.StrokeWidth_Max / 2;
+            double dispersion = genData.DispersionBound;
 
-            Task[] tasks = new Task[r_max - r_min + 1];
-            CircleTracingResult[] rois = new CircleTracingResult[r_max - r_min + 1];
+            int r_interval = r_max - r_min + 1;
+            Task[] tasks = new Task[r_interval];
+            CircleTracingResult[] rois = new CircleTracingResult[r_interval];
 
             for (int radius = r_min; radius <= r_max; radius++)
             {
                 int index = radius - r_min;
-                int rad = radius;
+                int r_curr = radius;
 
                 tasks[index] = Task.Run(() =>
                 {
-                    CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, x, y, rad);
+                    CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, x, y, r_curr);
                     MeanColorCalculator calc = new MeanColorCalculator(bitmap, circle.Coordinates);
                     double dispesion = StrokeUtils.GetDispersion(bitmap, circle.Coordinates, calc.GetMeanColor());
 
@@ -48,7 +48,7 @@ namespace ArtModel.ImageModel.Tracing
                     {
                         Coordinates = circle.Coordinates,
                         Calculator = calc,
-                        Radius = rad,
+                        Width = r_curr * 2,
                         Dispersion = dispesion
                     };
                 });
@@ -59,7 +59,7 @@ namespace ArtModel.ImageModel.Tracing
             for (int i = rois.Length - 1; i >= 0; i--)
             {
                 CircleTracingResult ro = rois[i];
-                if (ro.Dispersion <= tolerance)
+                if (ro.Dispersion <= dispersion)
                 {
                     return ro;
                 }
@@ -117,6 +117,7 @@ namespace ArtModel.ImageModel.Tracing
             return new CircleMaskResult(coordinates);
         }
 
+        static object locker = new();
         private static bool[,] GetMask(int radius)
         {
             if (_masks.ContainsKey(radius))
@@ -125,9 +126,12 @@ namespace ArtModel.ImageModel.Tracing
             }
             else
             {
-                var mask = CreateNewCircleMask(radius);
-                _masks.Add(radius, mask);
-                return mask;
+                lock (locker)
+                {
+                    var mask = CreateNewCircleMask(radius);
+                    _masks.TryAdd(radius, mask);
+                    return mask;
+                }
             }
         }
 

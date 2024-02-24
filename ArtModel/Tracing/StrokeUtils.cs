@@ -1,30 +1,11 @@
 ﻿using System.Drawing;
+using ArtModel.ImageProccessing;
 
-namespace ArtModel.ImageModel.Tracing
+namespace ArtModel.Tracing
 {
     public class StrokeUtils
     {
-        private static Color GetMeanColor(in List<Color> pixels)
-        {
-            int a_R = 0;
-            int a_G = 0;
-            int a_B = 0;
-
-            foreach (var pixel in pixels)
-            {
-                a_R += pixel.R;
-                a_G += pixel.G;
-                a_B += pixel.B;
-            }
-
-            a_R /= pixels.Count;
-            a_G /= pixels.Count;
-            a_B /= pixels.Count;
-
-            return Color.FromArgb(a_R, a_G, a_B);
-        }
-
-        public static double GetDispersion(ArtBitmap bitmap, in HashSet<(int x, int y)> pixels, in Color meanColor)
+        public static double GetDispersion(ArtBitmap bitmap, HashSet<(int x, int y)> pixels, in Color meanColor)
         {
             double sum = 0.0;
             foreach (var pixel in pixels)
@@ -54,7 +35,7 @@ namespace ArtModel.ImageModel.Tracing
 
         public MeanColorCalculator() { }
 
-        public MeanColorCalculator(in ArtBitmap bitmap, in HashSet<(int x, int y)> pixels) : this()
+        public MeanColorCalculator(ArtBitmap bitmap, HashSet<(int x, int y)> pixels) : this()
         {
             foreach (var pixel in pixels)
             {

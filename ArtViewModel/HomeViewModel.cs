@@ -1,23 +1,41 @@
-﻿using System;
+﻿using ArtModel.Core;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
-using ArtModel.Core;
+using System.Windows.Input;
+
 
 namespace ArtViewModel
 {
-    public class HomeViewModel
+    public class HomeViewModel : BaseViewModel
     {
         public HomeViewModel()
         {
-
+            InitializeCommands();
         }
 
-        public void ProcessImage(Bitmap bitmap, PathSettings pathSettings)
-        {
-            CoreArtModel model = new CoreArtModel(bitmap, pathSettings);
+        public ICommand OpenFileCommand { get; private set; }
 
-            model.Iterate();
+        public ICommand ProcessDataCommand { get; private set; }
+        public PathSettings PathSettings { get; private set; }
+
+        private void InitializeCommands()
+        {
+            // ProcessDataCommand = new RelayCommand(ProcessData);
+        }
+
+
+        public void NewImageProcess(Bitmap bitmap, PathSettings pathSettings)
+        {
+            ArtUserInput input = ArtUserInput.Default;
+            input.Width = bitmap.Width;
+            input.Height = bitmap.Height;
+
+            ArtModelSerializer artModelSerializer = new ArtModelSerializer(input);
+
+            CoreArtModel coreArtModel = new CoreArtModel(bitmap, artModelSerializer, pathSettings);
+
+            coreArtModel.Iterate();
         }
     }
 }

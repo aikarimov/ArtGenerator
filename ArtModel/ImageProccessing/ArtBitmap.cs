@@ -1,8 +1,9 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Numerics;
 
-namespace ArtModel.ImageModel
+namespace ArtModel.ImageProccessing
 {
     public unsafe class ArtBitmap
     {
@@ -39,6 +40,26 @@ namespace ArtModel.ImageModel
             LockBitmap();
         }
 
+        public void MakeTransparent()
+        {
+            UnlockBitmap();
+            _bitmap.MakeTransparent();
+            LockBitmap();
+        }
+
+        public void FillColor(Color color)
+        {
+            UnlockBitmap();
+            using (Graphics g = Graphics.FromImage(_bitmap))
+            {
+                using (SolidBrush brush = new SolidBrush(color))
+                {
+                    g.FillRectangle(brush, 0, 0, Width, Height);
+                }
+            }
+            LockBitmap();
+        }
+
         public ArtBitmap Copy()
         {
             ArtBitmap artBitmap = new ArtBitmap((Bitmap)_bitmap.Clone());
@@ -66,7 +87,7 @@ namespace ArtModel.ImageModel
             {
                 if (x >= 0 && x < Width && y >= 0 && y < Height)
                 {
-                    int position = ((Height - y - 1) * _bitmapData.Stride) + (x * 3);
+                    int position = (Height - y - 1) * _bitmapData.Stride + x * 3;
                     byte blue = _pixelData[position];
                     byte green = _pixelData[position + 1];
                     byte red = _pixelData[position + 2];
@@ -81,7 +102,7 @@ namespace ArtModel.ImageModel
             {
                 if (x >= 0 && x < Width && y >= 0 && y < Height)
                 {
-                    int position = ((Height - y - 1) * _bitmapData.Stride) + (x * 3);
+                    int position = (Height - y - 1) * _bitmapData.Stride + x * 3;
                     _pixelData[position] = value.B;
                     _pixelData[position + 1] = value.G;
                     _pixelData[position + 2] = value.R;
@@ -91,8 +112,15 @@ namespace ArtModel.ImageModel
 
         public void Save(string outputPath, string fileName)
         {
-            _bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
+            try
+            {
+                _bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
+            }
+            catch 
+            { 
+                Debug.WriteLine($"Error writing {fileName} to file {outputPath}");
+            }
         }
-  
+
     }
 }

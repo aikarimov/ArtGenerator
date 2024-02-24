@@ -1,4 +1,5 @@
-﻿using ArtViewModel;
+﻿using ArtGenerator.Views;
+using ArtViewModel;
 using Microsoft.Win32;
 using System.Drawing;
 using System.IO;
@@ -12,14 +13,19 @@ namespace ArtGenerator
     /// </summary>
     public partial class MainWindow : Window
     {
-        private HomeViewModel viewModelController;
- 
+        private HomeViewModel _homeViewModel;
+
+        //private bool
+
         public MainWindow()
         {
             InitializeComponent();
+
+            _homeViewModel = new HomeViewModel();
+            DataContext = _homeViewModel;
         }
 
-        private void OpenFileDialog()
+        private void OnOpenNewFile()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.InitialDirectory = inputPath.Text;
@@ -33,13 +39,13 @@ namespace ArtGenerator
 
         private void ProcessSelectedFile(string filePath)
         {
-            viewModelController = new HomeViewModel();
+
 
             using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
                 Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
 
-                viewModelController.ProcessImage(inputBitmap, new ArtModel.Core.PathSettings
+                _homeViewModel.NewImageProcess(inputBitmap, new ArtModel.Core.PathSettings
                 {
                     InputPath = inputPath.Text,
                     OutputPath = outputPath.Text
@@ -47,10 +53,24 @@ namespace ArtGenerator
             }
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void OpenNewArtPage(object sender, RoutedEventArgs e)
         {
+            //NewArtPage newPage = new NewArtPage();
+            //mainFrame.Content = newPage;
+
+            OnOpenNewFile();
+
+            /*newPage. += (sender, args) =>
+            {
+                button1.IsEnabled = true;
+                button2.IsEnabled = true;
+            };*/
+
+
+            // Устанавливаем в качестве содержимого Frame
+
             //popupMenu.IsOpen = true;
-           OpenFileDialog();
+            //OpenFileDialog();
         }
 
     }

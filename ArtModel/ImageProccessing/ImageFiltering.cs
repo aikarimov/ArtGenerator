@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using ArtModel.ImageProccessing;
 
 namespace ArtModel.ImageModel.ImageProccessing
 {

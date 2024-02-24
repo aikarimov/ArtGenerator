@@ -1,5 +1,4 @@
-﻿using ArtModel.ImageModel;
-using ArtModel.ImageModel.Tracing;
+﻿using ArtModel.Tracing;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -16,7 +15,7 @@ namespace ArtModel.StrokeLib
         Bottom = 1,
     }
 
-    public class StrokeLibraryReader
+    public static class StrokeLibraryReader
     {
         public static Dictionary<int, List<Stroke>> ReadAllStrokes(string rootPath, double resizeCoef = 1.0)
         {
@@ -32,6 +31,7 @@ namespace ArtModel.StrokeLib
                     Stroke strokeData = new Stroke(inputBitmap);
                     strokeData.Resize(resizeCoef);
 
+
                     Dictionary<string, int> newAttributes = ExtractAttributesFromPath(rootPath, filePath);
                     foreach (var kvp in newAttributes)
                     {
@@ -39,7 +39,6 @@ namespace ArtModel.StrokeLib
                     }
 
                     int segments = (int)strokeData.StrokeProperties.GetProperty(StrokeProperty.Points);
-
 
                     if (!strokes.ContainsKey(segments))
                     {
@@ -54,21 +53,23 @@ namespace ArtModel.StrokeLib
         }
 
         // Получение точки приложения кисти (центр битмапы для 1 сегмента, центр нижней грани для 2+ сегментов)
-        public static (int x, int y) FindPivotPoint(ArtBitmap artBitmap, StartPointAlign align)
+        public static (int x, int y) SetPivotPoint(Stroke stroke)
         {
+            StartPointAlign align = stroke.StrokeProperties.GetProperty(StrokeProperty.Points) == 1 ? StartPointAlign.Center : StartPointAlign.Bottom;
+
             if (align == StartPointAlign.Center)
             {
-                return (artBitmap.Width / 2, artBitmap.Height / 2);
+               return (stroke.Width / 2, stroke.Height / 2);
             }
             else
             {
-                int width = artBitmap.Width;
+                int width = stroke.Width;
                 int x1 = 0;
                 int x2 = width;
 
                 for (int i = 0; i < width; i++)
                 {
-                    if (artBitmap[i, 0].R <= 240)
+                    if (stroke[i, 0].R <= 240)
                     {
                         x1 = i;
                         break;
@@ -77,7 +78,7 @@ namespace ArtModel.StrokeLib
 
                 for (int i = width - 1; i > 0; i--)
                 {
-                    if (artBitmap[i, 0].R <= 240)
+                    if (stroke[i, 0].R <= 240)
                     {
                         x2 = i;
                         break;
