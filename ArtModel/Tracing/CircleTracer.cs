@@ -42,7 +42,7 @@ namespace ArtModel.Tracing
                 {
                     CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, x, y, r_curr);
                     MeanColorCalculator calc = new MeanColorCalculator(bitmap, circle.Coordinates);
-                    double dispesion = StrokeUtils.GetDispersion(bitmap, circle.Coordinates, calc.GetMeanColor());
+                    double dispesion = StrokeUtils.GetDispersion(bitmap, calc.GetMeanColor(), circle.Coordinates);
 
                     rois[index] = new CircleTracingResult()
                     {
@@ -106,7 +106,7 @@ namespace ArtModel.Tracing
                         int rx = x + i;
                         int ry = y + j;
 
-                        if (rx >= 0 && rx < bitmap.Width && ry >= 0 && ry < bitmap.Height)
+                        if (bitmap.IsInside(rx, ry))
                         {
                             coordinates.Add((rx, ry));
                         }
@@ -126,6 +126,7 @@ namespace ArtModel.Tracing
             }
             else
             {
+                // Может это фигня, я без понятия.
                 lock (locker)
                 {
                     var mask = CreateNewCircleMask(radius);

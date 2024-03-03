@@ -7,14 +7,7 @@ using System.Threading.Tasks;
 
 namespace ArtModel.Tracing
 {
-    public interface ITracingResult
-    {
-        public StrokePropertyCollection StrokeProperties { get; set; }
-
-        public Color MeanColor { get; set; }
-    }
-
-    public class TracingResult : ITracingResult
+    public class TracingResult
     {
         public TracingResult()
         {

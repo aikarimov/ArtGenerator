@@ -42,8 +42,8 @@ namespace ArtModel.ImageModel.ImageProccessing
         {
             byte[,] gray = ImageFiltering.ToGrayScale(origBm);
 
-            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX3);
-            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY3);
+            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX2);
+            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY2);
 
             double[,] result = new double[origBm.Height, origBm.Width];
 
@@ -52,7 +52,7 @@ namespace ArtModel.ImageModel.ImageProccessing
                 for (int y = 0; y < origBm.Height; y++)
                 {
                     double angle = Math.Atan2(dy[y, x], dx[y, x]);
-                    result[y, x] = angle;
+                    result[y, x] = /*Math.Round(angle, 5)*/ angle;
                 }
             }
 

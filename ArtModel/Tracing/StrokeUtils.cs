@@ -5,16 +5,22 @@ namespace ArtModel.Tracing
 {
     public class StrokeUtils
     {
-        public static double GetDispersion(ArtBitmap bitmap, HashSet<(int x, int y)> pixels, in Color meanColor)
+        public static double GetDispersion(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
         {
             double sum = 0.0;
-            foreach (var pixel in pixels)
+            int count = 0;
+
+            foreach (var set in pixelSets)
             {
-                double eucl = CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
-                sum += eucl;
+                foreach (var pixel in set)
+                {
+                    count++;
+                    double eucl = CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
+                    sum += eucl;
+                }
             }
 
-            return (sum / (pixels.Count()));
+            return (sum / count);
 
             static double CalculateSquaredEuclideanDistance(in Color c1, in Color c2)
             {

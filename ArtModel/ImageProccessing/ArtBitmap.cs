@@ -40,6 +40,11 @@ namespace ArtModel.ImageProccessing
             LockBitmap();
         }
 
+        public bool IsInside(int x, int y)
+        {
+            return (x >= 0 && x < Width && y >= 0 && y < Height);
+        }
+
         public void MakeTransparent()
         {
             UnlockBitmap();
@@ -116,11 +121,10 @@ namespace ArtModel.ImageProccessing
             {
                 _bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
             }
-            catch 
-            { 
+            catch
+            {
                 Debug.WriteLine($"Error writing {fileName} to file {outputPath}");
             }
         }
-
     }
 }

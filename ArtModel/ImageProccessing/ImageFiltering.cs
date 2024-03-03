@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using ArtModel.ImageProccessing;
 
 namespace ArtModel.ImageModel.ImageProccessing
@@ -42,7 +43,7 @@ namespace ArtModel.ImageModel.ImageProccessing
             return result;
         }
 
-        public static double[,] ApplyConvolution(double[,] core, double[,] kernel)
+        public static double[,] ApplyConvolutionToAngles(double[,] core, double[,] kernel)
         {
             int rows = core.GetLength(0);
             int cols = core.GetLength(1);
@@ -61,6 +62,12 @@ namespace ArtModel.ImageModel.ImageProccessing
                 {
                     double sum = 0.0;
 
+                    double middleAngle = core[
+                        Math.Clamp(y, halfKernelRows, rows - halfKernelRows - 1),
+                        Math.Clamp(x, halfKernelColumns, cols - halfKernelColumns - 1)];
+
+                    RecalcMid(ref middleAngle);
+
                     for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
@@ -68,7 +75,11 @@ namespace ArtModel.ImageModel.ImageProccessing
                             int k_y = Math.Clamp(y + m, halfKernelRows, rows - halfKernelRows - 1);
                             int k_x = Math.Clamp(x + n, halfKernelColumns, cols - halfKernelColumns - 1);
 
-                            sum += core[k_y, k_x] * kernel[m + halfKernelRows, n + halfKernelColumns];
+                            double currentAngle = core[k_y, k_x];
+
+                            RecalcQuarter(ref currentAngle, middleAngle);
+
+                            sum += currentAngle * kernel[m + halfKernelRows, n + halfKernelColumns];
                         }
                     }
 
@@ -77,6 +88,29 @@ namespace ArtModel.ImageModel.ImageProccessing
             }
 
             return result;
+
+            void RecalcMid(ref double middleAngle)
+            {
+                if (middleAngle > 0) middleAngle = 1;
+                if (middleAngle < 0) middleAngle = -1;
+            }
+
+            void RecalcQuarter(ref double currentAngle, in double middleAngle)
+            {
+                switch (middleAngle)
+                {
+                    // Исходный угол отрицательный
+                    case -1:
+                        if (currentAngle > 0)
+                            currentAngle -= Math.Tau;
+                        break;
+                    // Исходный угол положительный
+                    case 1:
+                        if (currentAngle < 0)
+                            currentAngle += Math.Tau;
+                        break;
+                }
+            }
         }
 
         public static ArtBitmap ApplyConvolution(ArtBitmap core, double[,] kernel)
@@ -119,7 +153,6 @@ namespace ArtModel.ImageModel.ImageProccessing
                     int R = (int)Math.Clamp(sum_R, 0, 255);
                     int G = (int)Math.Clamp(sum_G, 0, 255);
                     int B = (int)Math.Clamp(sum_B, 0, 255);
-
 
                     result[x, y] = Color.FromArgb(R, G, B);
                 }

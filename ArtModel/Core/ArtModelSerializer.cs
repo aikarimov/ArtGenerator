@@ -107,7 +107,7 @@ namespace ArtModel.Core
         [NonSerialized()]
         public static readonly ArtUserInput Default = new ArtUserInput()
         {
-            Generations = 6,
+            Generations = 5,
 
             Width = 200,
             Height = 200,
@@ -116,12 +116,12 @@ namespace ArtModel.Core
             StrokeWidth_Max = 80,
 
             StrokeLength_Min = 0,
-            StrokeLength_Max = 60,
+            StrokeLength_Max = 70,
 
             BlurSigma_Min = 8,
             BlurSigma_Max = 40,
 
-            Dispersion_Min = 300,
+            Dispersion_Min = 100,
             Dispersion_Max = 700,
 
             Curve = GenerationCurve.Linear,

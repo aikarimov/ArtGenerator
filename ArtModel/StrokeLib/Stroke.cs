@@ -12,17 +12,19 @@ namespace ArtModel.StrokeLib
 {
     public class Stroke : ArtBitmap
     {
+        private const byte WhiteColorBorder = 240;
+
         public Stroke(Bitmap bitmap) : base(bitmap)
         {
             StrokeProperties = new StrokePropertyCollection();
             PivotPoint = (Width / 2, Height / 2);
         }
 
-        public (int x, int y) PivotPoint { get; set; }
+        public (int x, int y) PivotPoint { get; private set; }
 
         public StrokePropertyCollection StrokeProperties { get; private set; }
 
-        public Stroke Copy()
+        public new Stroke Copy()
         {
             return new Stroke((Bitmap)_bitmap.Clone())
             {
@@ -30,9 +32,11 @@ namespace ArtModel.StrokeLib
                 PivotPoint = PivotPoint,
             };
         }
-        // [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("windows")]
+
         public void Resize(double coefficient)
         {
+            Math.Clamp(coefficient, 0.001, 100000);
+
             UnlockBitmap();
 
             Width = (int)Math.Ceiling(Width * coefficient);
@@ -56,7 +60,16 @@ namespace ArtModel.StrokeLib
             LockBitmap();
         }
 
-        // Поворот мазка на заданный угол. На вход подаётся абсолютный угол в радианах, в сторону которого должен смотреть мазок
+        // Что тут происходит:
+        // На вход мы подаём абсолютный угол, на который хотим повернуть мазок. В библиотеке все мазки изначально смотрят вверх, поэтому вычитаем из угла PI/2, это relAngle
+        // Поворот использует RotateTransform, поэтому мы создаём новую битмапу, заранее расчитывая её размеры, учитывая угол поворота через синусы и косинусы.
+        // Это будет битмапа, в которую попадёт наш исходный прямоугольник, когда его повернут на заданный угол.
+        // Но поворота битмпаы недостаточно, требуется повернуть точку привязки мазка. Это точка, из которой он будет рисоваться. Она поворачивается через матрицу поворота.
+        // Изначально через CalculatePivotPoint() расчитывается исходная точка привзяки в исходной системе координат
+        // Далее она смещается в новую систему координат, находящейся в центре прямоугольника.
+        // 
+        // 
+        // 
         public void Rotate(double rotationAngle)
         {
             double relAngle = rotationAngle - Math.PI / 2;
@@ -79,7 +92,6 @@ namespace ArtModel.StrokeLib
 
             UnlockBitmap();
             Bitmap rotatedBitmap = new Bitmap(newWidth, newHeight);
-            rotatedBitmap.MakeTransparent();
             rotatedBitmap.SetResolution(_bitmap.HorizontalResolution, _bitmap.VerticalResolution);
 
             using (Graphics g = Graphics.FromImage(rotatedBitmap))
@@ -102,8 +114,6 @@ namespace ArtModel.StrokeLib
             Height = newHeight;
             LockBitmap();
 
-
-
             (int x, int y) CalculatePivotPoint()
             {
                 StartPointAlign align = StrokeProperties.GetProperty(StrokeProperty.Points) == 1 ? StartPointAlign.Center : StartPointAlign.Bottom;
@@ -120,7 +130,7 @@ namespace ArtModel.StrokeLib
 
                     for (int i = 0; i < width; i++)
                     {
-                        if (this[i, 0].R <= 240)
+                        if (this[i, 0].R <= WhiteColorBorder)
                         {
                             x1 = i;
                             break;
@@ -129,7 +139,7 @@ namespace ArtModel.StrokeLib
 
                     for (int i = width - 1; i > 0; i--)
                     {
-                        if (this[i, 0].R <= 240)
+                        if (this[i, 0].R <= WhiteColorBorder)
                         {
                             x2 = i;
                             break;
@@ -142,8 +152,12 @@ namespace ArtModel.StrokeLib
             double GetPivotAngle(in (int x, int y) point, in (int x, int y) center)
             {
                 (int x, int y) vect = (point.x - center.x, point.y - center.y);
+                
+                // Скалярное произведение на вектор (1;0)
                 double angle = vect.x / Math.Sqrt(Math.Pow(vect.x, 2) + Math.Pow(vect.y, 2));
                 return Math.Acos(angle) * Math.Sign(point.y);
+
+                //return Math.Atan2(vect.y, vect.x);
             }
 
             (int x, int y) RotatePoint(in (int x, int y) point, in double angle)
@@ -156,8 +170,6 @@ namespace ArtModel.StrokeLib
 
                 return (xnew, ynew);
             }
-
-
         }
     }
 }

@@ -4,6 +4,8 @@
     {
         private HashSet<(int, int)> _coordsData;
 
+        private double _initialSize;
+
         private Random _random;
 
         public RandomPoolGenerator(int width, int height)
@@ -17,8 +19,8 @@
                     _coordsData.Add((x, y));
                 }
             }
-
-            _random = new Random(1);
+            _initialSize = _coordsData.Count;
+            _random = new Random(0);
         }
 
         public void RemoveFromPool(HashSet<(int, int)> pixels)
@@ -37,6 +39,11 @@
         public bool PoolAvaliable()
         {
             return (_coordsData.Count > 0);
+        }
+
+        public double PoolPercent()
+        {
+            return (_coordsData.Count / _initialSize);
         }
 
         public (int x, int y) GetFromPool()

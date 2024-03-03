@@ -10,7 +10,7 @@ namespace ArtModel.ImageModel.ImageProccessing
             Vertical
         }
 
-        public static double[,] ApplyBlur(double[,] core, double sigma)
+        public static double[,] ApplyBlurToBrightnessMap(double[,] core, double sigma)
         {
             if (sigma == 0)
             {
@@ -26,8 +26,8 @@ namespace ArtModel.ImageModel.ImageProccessing
             double[,] kernelX = Generate1dGaussianKernel(kernelSize, sigma, Direction.Horizontal);
             double[,] kernelY = Generate1dGaussianKernel(kernelSize, sigma, Direction.Vertical);
 
-            double[,] blurX = ImageFiltering.ApplyConvolution(core, kernelX);
-            double[,] blurXY = ImageFiltering.ApplyConvolution(blurX, kernelY);
+            double[,] blurX = ImageFiltering.ApplyConvolutionToAngles(core, kernelX);
+            double[,] blurXY = ImageFiltering.ApplyConvolutionToAngles(blurX, kernelY);
 
             return blurXY;
         }
@@ -82,7 +82,7 @@ namespace ArtModel.ImageModel.ImageProccessing
 
         private static double G(int x, double sigma)
         {
-            return 1.0f / Math.Sqrt(2 * Math.PI * sigma * sigma) * Math.Exp(-(x * x) / (2 * sigma * sigma));
+            return 1.0 / Math.Sqrt(2 * Math.PI * sigma * sigma) * Math.Exp(-(x * x) / (2 * sigma * sigma));
         }
     }
 }

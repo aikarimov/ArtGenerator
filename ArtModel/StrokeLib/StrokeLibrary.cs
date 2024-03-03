@@ -1,5 +1,7 @@
 ﻿using ArtModel.Core;
 using ArtModel.Tracing;
+using System.Drawing;
+using System.Text.RegularExpressions;
 
 namespace ArtModel.StrokeLib
 {
@@ -85,5 +87,90 @@ namespace ArtModel.StrokeLib
             }
         }
 
+    }
+
+    public enum StartPointAlign
+    {
+        Center = 0,
+        Bottom = 1,
+    }
+
+    file static class StrokeLibraryReader
+    {
+        public static Dictionary<int, List<Stroke>> ReadAllStrokes(string rootPath, double resizeCoef = 1.0)
+        {
+            Dictionary<int, List<Stroke>> strokes = new();
+
+            Parallel.ForEach(Directory.GetFiles(rootPath, "*.*", SearchOption.AllDirectories), filePath =>
+            {
+                using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                {
+                    Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
+                    inputBitmap = StrokeReader.ReadStrokeCropped(inputBitmap);
+
+                    Stroke strokeData = new Stroke(inputBitmap);
+                    strokeData.Resize(resizeCoef);
+
+                    Dictionary<string, int> newAttributes = ExtractAttributesFromPath(rootPath, filePath);
+                    foreach (var kvp in newAttributes)
+                    {
+                        strokeData.StrokeProperties.SetProperty(kvp.Key, kvp.Value);
+                    }
+
+                    int segments = (int)strokeData.StrokeProperties.GetProperty(StrokeProperty.Points);
+
+                    if (!strokes.ContainsKey(segments))
+                    {
+                        strokes.Add(segments, new List<Stroke>());
+                    }
+
+                    strokes[segments].Add(strokeData);
+                }
+            });
+
+            return strokes;
+        }
+
+        // Получние аттрибутов из пути /w1l5/s1a1 -> {w, 1}, {l, 5}, {s, 1}, {a, 1}
+        private static Dictionary<string, int> ExtractAttributesFromPath(string rootPath, string filePath)
+        {
+            Dictionary<string, int> attributes = new();
+
+            string relativePath = Path.GetRelativePath(rootPath, filePath);
+            relativePath = relativePath.Substring(0, relativePath.IndexOf('.')); // Убрать разрешение
+
+            string[] components = relativePath.Split(Path.DirectorySeparatorChar);
+
+            foreach (var component in components)
+            {
+                Dictionary<string, int> componentAttributes = ExtractAttributesFromName(component);
+                foreach (var kvp in componentAttributes)
+                {
+                    if (!attributes.ContainsKey(kvp.Key))
+                    {
+                        attributes.Add(kvp.Key, kvp.Value);
+                    }
+                }
+            }
+
+            return attributes;
+        }
+
+        // Получение аттрибутов из строки. w1l5 -> {w, 1}, {l, 5}
+        private static Dictionary<string, int> ExtractAttributesFromName(string name)
+        {
+            Dictionary<string, int> attributes = new();
+            Regex regex = new Regex(@"([a-zA-Z]+)(\d+)");
+            MatchCollection matches = regex.Matches(name);
+
+            foreach (Match match in matches)
+            {
+                string key = match.Groups[1].Value;
+                string value = match.Groups[2].Value;
+                attributes[key] = Convert.ToInt32(value);
+            }
+
+            return attributes;
+        }
     }
 }
