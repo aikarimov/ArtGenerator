@@ -1,5 +1,5 @@
 ﻿using ArtGenerator.Views;
-using ArtViewModel;
+using ArtModel.Core;
 using Microsoft.Win32;
 using System.Drawing;
 using System.IO;
@@ -13,16 +13,10 @@ namespace ArtGenerator
     /// </summary>
     public partial class MainWindow : Window
     {
-        private HomeViewModel _homeViewModel;
-
-        //private bool
 
         public MainWindow()
         {
             InitializeComponent();
-
-            _homeViewModel = new HomeViewModel();
-            DataContext = _homeViewModel;
         }
 
         private void OnOpenNewFile()
@@ -39,17 +33,23 @@ namespace ArtGenerator
 
         private void ProcessSelectedFile(string filePath)
         {
-
-
             using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
                 Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
 
-                _homeViewModel.NewImageProcess(inputBitmap, new ArtModel.Core.PathSettings
+                ArtUserInput input = ArtUserInput.Default;
+                input.Width = inputBitmap.Width;
+                input.Height = inputBitmap.Height;
+
+                ArtModelSerializer artModelSerializer = new ArtModelSerializer(input);
+
+                CoreArtModel coreArtModel = new CoreArtModel(inputBitmap, artModelSerializer, new ArtModel.Core.PathSettings
                 {
                     InputPath = inputPath.Text,
                     OutputPath = outputPath.Text
                 });
+
+                coreArtModel.Iterate();
             }
         }
 

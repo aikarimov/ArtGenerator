@@ -21,7 +21,7 @@ namespace ArtModel.Tracing.PathTracing.Shapes
 
             if (p1.x == p2.x || p1.y == p2.y)
             {
-               // RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
+                // RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
                 //RectangleShapeConstraintsCalculator.CalculateHorizontalConstraints(p2, p4, _constraints);
                 return;
             }
@@ -101,7 +101,7 @@ namespace ArtModel.Tracing.PathTracing.Shapes
 
             (double k, double b) GetLineCoefs(in (int x, int y) pp1, in (int x, int y) pp2)
             {
-                double k = (pp2.y - pp1.y) / (pp2.x - pp1.x);
+                double k = (pp2.y - pp1.y) * 1.0 / (pp2.x - pp1.x);
                 double b = pp1.y - k * pp1.x;
                 return (k, b);
             }

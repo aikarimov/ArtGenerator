@@ -2,39 +2,108 @@
 using ArtModel.Tracing;
 using System.Drawing;
 using System.Text.RegularExpressions;
+using OpenCvSharp;
 
 namespace ArtModel.StrokeLib
 {
+    public class NormalizationParam
+    {
+        public NormalizationParam(double initialValue)
+        {
+            MinValue = initialValue;
+            MaxValue = initialValue;
+        }
+
+        public double MinValue { get; set; }
+
+        public double MaxValue { get; set; }
+
+        public double Interval => MaxValue - MinValue + 1;
+
+        public void AddValue(double value)
+        {
+            MinValue = value < MinValue ? value : MinValue;
+            MaxValue = value > MaxValue ? value : MaxValue;
+        }
+
+        public double Normalize(double value)
+        {
+            return (value - MinValue) / Interval;
+        }
+    }
+
+    public class StrokePropertyNormalizator : StrokePropertyCollection<NormalizationParam>
+    {
+        public void AddP(StrokeProperty key, double value)
+        {
+            if (!CheckPropery(key))
+            {
+                SetP(key, new NormalizationParam(value));
+            }
+            else
+            {
+                GetP(key).AddValue(value);
+            }
+        }
+
+        public double Normalize(StrokeProperty key, double value)
+        {
+            return GetP(key).Normalize(value);
+        }
+    }
+
     public class StrokeLibrary
     {
         private double mm_tp_px_coef = 8.6;
-        static string sourceLibraryPath = "..\\..\\..\\..\\ArtModel\\StrokeLib\\SourceLib";
+        private string sourceLibraryPath;
 
+        private StrokePropertyNormalizator _normaliztor;
         private Dictionary<int, List<Stroke>> _strokesData;
 
-        static StrokeLibrary()
+        public StrokeLibrary(string libFolder, ArtModelSerializer serializer, double resizeCoefficient = 1)
         {
+            sourceLibraryPath = libFolder;
+            mm_tp_px_coef *= resizeCoefficient;
 
+            _strokesData = new()
+            {
+                { 1, new List<Stroke>() },
+                { 2, new List<Stroke>() },
+                { 3, new List<Stroke>() }
+            };
+
+            _normaliztor = new StrokePropertyNormalizator();
+            InitNormalizator(_normaliztor, serializer);
+
+            StrokeLibraryReader.ReadAllStrokes(sourceLibraryPath, _strokesData, resizeCoefficient);
         }
 
-        public StrokeLibrary(double resizeCoefficient = 1)
+        private void InitNormalizator(StrokePropertyNormalizator normaliztor, ArtModelSerializer serializer)
         {
-            mm_tp_px_coef *= resizeCoefficient;
-            _strokesData = StrokeLibraryReader.ReadAllStrokes(sourceLibraryPath, resizeCoefficient);
+            var input = serializer.UserInput;
+
+            normaliztor.AddP(StrokeProperty.Angle1, 0); // Углы меньше 10 будут считаться как 0
+            normaliztor.AddP(StrokeProperty.Angle1, 90);
+
+            normaliztor.AddP(StrokeProperty.Fraction, 0); // Первый сегмент почти 0
+            normaliztor.AddP(StrokeProperty.Fraction, 100); // Первый сегмент почти весь мазок
+
+            normaliztor.AddP(StrokeProperty.LtoW, input.StrokeLength_Max / input.StrokeWidth_Min);
+            normaliztor.AddP(StrokeProperty.LtoW, input.StrokeLength_Min / input.StrokeWidth_Max);
         }
 
         public Stroke ClassifyStroke(TracingResult targetStroke, ArtGeneration genData)
         {
-            double points = targetStroke.StrokeProperties.GetProperty(StrokeProperty.Points);
+            double points = targetStroke.SP.GetP(StrokeProperty.Points);
 
             switch (points)
             {
                 case 1:
-                    return ClassifyPt1(targetStroke).Copy();
+                    return ClassifyPt1(targetStroke);
                 case 2:
-                    return ClassifyPt2(targetStroke).Copy();
+                    return ClassifyPt2(targetStroke);
                 case 3:
-                    return ClassifyPt3(targetStroke).Copy();
+                    return ClassifyPt3(targetStroke);
                 default:
                     goto case 1;
             }
@@ -42,62 +111,74 @@ namespace ArtModel.StrokeLib
 
         private Stroke ClassifyPt1(TracingResult targetStroke)
         {
-            double width = targetStroke.StrokeProperties.GetProperty(StrokeProperty.Width);
+            double width = targetStroke.SP.GetP(StrokeProperty.Width);
 
             return _strokesData[1]
-                .OrderBy(sourceStroke => Math.Abs(sourceStroke.StrokeProperties.GetProperty(StrokeProperty.Width) * mm_tp_px_coef - width))
-                .First();
+                .MinBy(sourceStroke => Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef - width))!
+                .Copy();
         }
 
         private Stroke ClassifyPt2(TracingResult targetStroke)
         {
-            double target_width = targetStroke.StrokeProperties.GetProperty(StrokeProperty.Width);
-            double target_length = targetStroke.StrokeProperties.GetProperty(StrokeProperty.Length);
-            double div = target_length / target_width;
-            double real_width_weight = 0;
-
             return _strokesData[2]
-               .OrderBy(sourceStroke =>
+               .MinBy(sourceStroke =>
                    {
-                       double source_width = sourceStroke.StrokeProperties.GetProperty(StrokeProperty.Width);
-                       double source_length = sourceStroke.StrokeProperties.GetProperty(StrokeProperty.Length);
-
-                       return Math.Abs(source_length / source_width - div) /*+real_width_weight * Math.Abs(target_width - source_width)*/;
-                   })
-               .First();
+                       return Math.Abs(targetStroke.SP.GetP(StrokeProperty.LtoW) - sourceStroke.SP.GetP(StrokeProperty.LtoW));
+                   })!
+               .Copy();
         }
 
         private Stroke ClassifyPt3(TracingResult targetStroke)
         {
-            return _strokesData[3][0];
+            double target_ltow = _normaliztor.Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
+            double target_angle = _normaliztor.Normalize(StrokeProperty.Angle1, Math.Abs(targetStroke.SP.GetP(StrokeProperty.Angle1)));
+            double target_fraction = _normaliztor.Normalize(StrokeProperty.Fraction, targetStroke.SP.GetP(StrokeProperty.Fraction));
+
+            Stroke result = _strokesData[3]
+               .MinBy(sourceStroke =>
+               {
+                   double source_ltow = _normaliztor.Normalize(StrokeProperty.LtoW, sourceStroke.SP.GetP(StrokeProperty.LtoW));
+                   double source_angle = _normaliztor.Normalize(StrokeProperty.Angle1, Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Angle1)));
+                   double source_fraction = _normaliztor.Normalize(StrokeProperty.Fraction, sourceStroke.SP.GetP(StrokeProperty.Fraction));
+
+                   double df_ltow = Math.Abs(target_ltow - source_ltow);
+                   double df_angle = Math.Abs(target_angle - source_angle);
+                   double df_fraction = Math.Abs(target_fraction - source_fraction);
+
+                   return Math.Sqrt(
+                       Math.Pow(df_ltow, 2) +
+                       Math.Pow(df_angle, 2) +
+                       Math.Pow(df_fraction, 2));
+               })!
+               .Copy();
+
+            double a1 = targetStroke.SP.GetP(StrokeProperty.Angle1);
+            double a2 = result.SP.GetP(StrokeProperty.Angle1);
+
+            try
+            {
+                if (a1 != double.NaN && a2 != double.NaN && (Math.Sign(a1) != Math.Sign(a2)))
+                {
+                    result.Flip(RotateFlipType.RotateNoneFlipX);
+                }              
+            }
+            catch { }
+            
+            return result;
         }
 
         public double CalculateResizeCoefficient(TracingResult tracingResult, Stroke strokeData)
         {
-            double points = tracingResult.StrokeProperties.GetProperty(StrokeProperty.Points);
-            switch (points)
-            {
-                case 1:
-                    return (tracingResult.StrokeProperties.GetProperty(StrokeProperty.Width) / (strokeData.StrokeProperties.GetProperty(StrokeProperty.Width) * mm_tp_px_coef));
-                case 2:
-                    return (tracingResult.StrokeProperties.GetProperty(StrokeProperty.Width) / (strokeData.StrokeProperties.GetProperty(StrokeProperty.Width) * mm_tp_px_coef));
-                   // return (tracingResult.StrokeProperties.GetProperty(StrokeProperty.Length) / strokeData.Height);
-                default:
-                    return (0.0);
-            }
+            double widthCoef = (tracingResult.SP.GetP(StrokeProperty.Width) / (strokeData.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef));
+            return widthCoef;
+
+            //double lenCoef = (tracingResult.SP.GetP(StrokeProperty.Width) / (strokeData.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef));
         }
-
-    }
-
-    public enum StartPointAlign
-    {
-        Center = 0,
-        Bottom = 1,
     }
 
     file static class StrokeLibraryReader
     {
-        public static Dictionary<int, List<Stroke>> ReadAllStrokes(string rootPath, double resizeCoef = 1.0)
+        public static void ReadAllStrokes(string rootPath, Dictionary<int, List<Stroke>> data, double resizeCoef = 1.0)
         {
             Dictionary<int, List<Stroke>> strokes = new();
 
@@ -105,30 +186,47 @@ namespace ArtModel.StrokeLib
             {
                 using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                 {
-                    Bitmap inputBitmap = (Bitmap)Image.FromStream(fileStream);
-                    inputBitmap = StrokeReader.ReadStrokeCropped(inputBitmap);
+
+                    Bitmap inputBitmap = StrokeReader.ReadStrokeCropped((Bitmap)Image.FromStream(fileStream));
 
                     Stroke strokeData = new Stroke(inputBitmap);
                     strokeData.Resize(resizeCoef);
 
-                    Dictionary<string, int> newAttributes = ExtractAttributesFromPath(rootPath, filePath);
-                    foreach (var kvp in newAttributes)
+                    foreach (var kvp in ExtractAttributesFromPath(rootPath, filePath))
                     {
-                        strokeData.StrokeProperties.SetProperty(kvp.Key, kvp.Value);
+                        StrokeProperty property = StrokePropertyCollection<double>.StrokePropertyByAlias(kvp.Key);
+                        strokeData.SP.SetP(property, kvp.Value);
                     }
+                    RecaclulateIndirectProperties(strokeData.SP);
 
-                    int segments = (int)strokeData.StrokeProperties.GetProperty(StrokeProperty.Points);
+                    int points = (int)strokeData.SP.GetP(StrokeProperty.Points);
 
-                    if (!strokes.ContainsKey(segments))
-                    {
-                        strokes.Add(segments, new List<Stroke>());
-                    }
+                    // Добавление мазка в бибилиотеку
+                    data[points].Add(strokeData);
 
-                    strokes[segments].Add(strokeData);
+                    // Нормализация. Мазки с 1, 2 точками нет смысла считать, там не использутся норма
+
+                    /* if (points > 2)
+                     {
+                         foreach (var kvp in strokeData.SP)
+                         {
+                             data[points].Normalizator.AddP(kvp.Key, kvp.Value);
+                         }
+                     }*/
                 }
             });
+        }
 
-            return strokes;
+        // Посчитать непрямые свойства, которые идут на основе других
+        private static void RecaclulateIndirectProperties(StrokePropertyCollection<double> collection)
+        {
+            try
+            {
+                double length = collection.GetP(StrokeProperty.Length);
+                double width = collection.GetP(StrokeProperty.Width);
+                collection.SetP(StrokeProperty.LtoW, length / width);
+            }
+            catch { }
         }
 
         // Получние аттрибутов из пути /w1l5/s1a1 -> {w, 1}, {l, 5}, {s, 1}, {a, 1}
@@ -143,13 +241,9 @@ namespace ArtModel.StrokeLib
 
             foreach (var component in components)
             {
-                Dictionary<string, int> componentAttributes = ExtractAttributesFromName(component);
-                foreach (var kvp in componentAttributes)
+                foreach (var kvp in ExtractAttributesFromName(component))
                 {
-                    if (!attributes.ContainsKey(kvp.Key))
-                    {
-                        attributes.Add(kvp.Key, kvp.Value);
-                    }
+                    attributes.TryAdd(kvp.Key, kvp.Value);
                 }
             }
 

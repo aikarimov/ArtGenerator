@@ -1,5 +1,6 @@
-﻿using ArtModel.Core.ArtificialCanvas;
+﻿using ArtModel.ImageProccessing;
 using ArtModel.StrokeLib;
+using ArtModel.Tracing;
 using System.Drawing;
 using System.Text.Json;
 
@@ -9,23 +10,38 @@ namespace ArtModel.Core
     {
         public string InputPath;
         public string OutputPath;
+        public string LibraryPath;
     }
 
     public class CoreArtModel
     {
-        private ArtificialCanvasGenerator _artificialCanvasGenerator;
+        private ArtBitmap _originalCanvas;
+
+        private ArtModelSerializer _modelSerializer;
+
+        private PathSettings _pathSettings;
 
         public CoreArtModel(Bitmap bitmap, ArtModelSerializer serializer, PathSettings pathSettings)
         {
-            _artificialCanvasGenerator = new ArtificialCanvasGenerator(bitmap, serializer, pathSettings);
+            _originalCanvas = new ArtBitmap(bitmap);
+            _modelSerializer = serializer;
+            _pathSettings = pathSettings;
 
+            _pathSettings.LibraryPath = "..\\..\\..\\..\\ArtModel\\StrokeLib\\SourceLib";
         }
 
         public void Iterate()
         {
-            _artificialCanvasGenerator.IterateStrokes();
+            Tracer tracer = new Tracer(_originalCanvas, _modelSerializer, _pathSettings);
 
-            _artificialCanvasGenerator.EndIterations();
+            foreach (var bitmap in tracer)
+            {
+
+            }
+
+
+
+            _originalCanvas.UnlockBitmap();
         }
     }
 }

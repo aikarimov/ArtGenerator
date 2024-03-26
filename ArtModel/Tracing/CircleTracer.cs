@@ -10,13 +10,15 @@ namespace ArtModel.Tracing
 {
     public struct CircleTracingResult
     {
-        public HashSet<(int x, int y)> Coordinates;
+        public (int x, int y) CenterPoint { get; set; }
 
-        public MeanColorCalculator Calculator;
+        public HashSet<(int x, int y)> Coordinates { get; set; }
 
-        public int Width;
+        public MeanColorCalculator Calculator { get; set; }
 
-        public double Dispersion;
+        public int Width { get; set; }
+
+        public double Dispersion { get; set; }
     }
 
     public class CircleTracer
@@ -46,6 +48,7 @@ namespace ArtModel.Tracing
 
                     rois[index] = new CircleTracingResult()
                     {
+                        CenterPoint = point,
                         Coordinates = circle.Coordinates,
                         Calculator = calc,
                         Width = r_curr * 2,

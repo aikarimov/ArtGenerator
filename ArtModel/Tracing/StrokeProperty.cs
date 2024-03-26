@@ -11,26 +11,35 @@ namespace ArtModel.Tracing
     public enum StrokeProperty
     {
         Points, // Количество точек мазка
+
         Width, // Ширина мазка
         Length, // Суммарная длина мазка по сегментам
-        Angle, // Углы между сегментами
+        LtoW, // Отношение W к L
+
+        Angle1, // Углы между сегментами
         Fraction // Доли сегментов от общей длины
     }
 
-    public class StrokePropertyCollection : Dictionary<StrokeProperty, double>
+    public class StrokePropertyCollection<T> : Dictionary<StrokeProperty, T>
     {
+        private object locker;
+
         public StrokePropertyCollection()
         {
-
+            locker = new object();
         }
 
-        // TODO: Добавить поддержку списка свойств
-        public double GetProperty(StrokeProperty key)
+        public virtual bool CheckPropery(StrokeProperty key)
+        {
+            return ContainsKey(key);
+        }
+
+        public virtual T GetP(StrokeProperty key)
         {
             return this[key];
         }
 
-        public void SetProperty(StrokeProperty key, double value)
+        public virtual void SetP(StrokeProperty key, T value)
         {
             if (ContainsKey(key))
             {
@@ -38,19 +47,35 @@ namespace ArtModel.Tracing
             }
             else
             {
-                Add(key, value);
+                lock (locker)
+                {
+                    TryAdd(key, value);
+                }
             }
         }
 
-        public void SetProperty(string key, double value) => SetProperty(StrokePropertyAliases[key], value);
+        public static StrokeProperty StrokePropertyByAlias(string key)
+        {
+            return StrokePropertyAliases[key];
+        }
 
         private static Dictionary<string, StrokeProperty> StrokePropertyAliases = new()
         {
             { "pt" , StrokeProperty.Points },
             { "w" , StrokeProperty.Width },
             { "l" , StrokeProperty.Length },
-            { "a" , StrokeProperty.Angle },
+            { "a" , StrokeProperty.Angle1 },
             { "s" , StrokeProperty.Fraction },
         };
+
+        public override bool Equals(object? obj)
+        {
+            return base.Equals(obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
     }
 }

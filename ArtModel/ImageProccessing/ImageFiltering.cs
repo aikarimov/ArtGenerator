@@ -66,8 +66,6 @@ namespace ArtModel.ImageModel.ImageProccessing
                         Math.Clamp(y, halfKernelRows, rows - halfKernelRows - 1),
                         Math.Clamp(x, halfKernelColumns, cols - halfKernelColumns - 1)];
 
-                    RecalcMid(ref middleAngle);
-
                     for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
@@ -89,15 +87,9 @@ namespace ArtModel.ImageModel.ImageProccessing
 
             return result;
 
-            void RecalcMid(ref double middleAngle)
-            {
-                if (middleAngle > 0) middleAngle = 1;
-                if (middleAngle < 0) middleAngle = -1;
-            }
-
             void RecalcQuarter(ref double currentAngle, in double middleAngle)
             {
-                switch (middleAngle)
+                switch (Math.Sign(middleAngle))
                 {
                     // Исходный угол отрицательный
                     case -1:

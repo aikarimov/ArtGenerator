@@ -13,6 +13,8 @@ namespace ArtModel.Core
     {
         public int GenerationsNumber { get; init; }
 
+        public ArtUserInput UserInput { get; init; }
+
         public List<ArtGeneration> Generations { get; set; }
 
         // Методы
@@ -33,6 +35,7 @@ namespace ArtModel.Core
 
         public ArtModelSerializer(ArtUserInput inputData)
         {
+            UserInput = inputData;
             Generations = new List<ArtGeneration>();
             GenerationsNumber = inputData.Generations;
 
@@ -107,7 +110,7 @@ namespace ArtModel.Core
         [NonSerialized()]
         public static readonly ArtUserInput Default = new ArtUserInput()
         {
-            Generations = 5,
+            Generations = 7,
 
             Width = 200,
             Height = 200,
@@ -115,8 +118,8 @@ namespace ArtModel.Core
             StrokeWidth_Min = 8,
             StrokeWidth_Max = 80,
 
-            StrokeLength_Min = 0,
-            StrokeLength_Max = 70,
+            StrokeLength_Min = 1,
+            StrokeLength_Max = 60,
 
             BlurSigma_Min = 8,
             BlurSigma_Max = 40,
@@ -129,6 +132,7 @@ namespace ArtModel.Core
 
         // Количество поколений рисовки
         public int Generations { get; set; }
+
 
         // Ширина и высота холста
         public int Width { get; set; }

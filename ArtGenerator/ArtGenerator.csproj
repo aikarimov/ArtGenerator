@@ -7,10 +7,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ArtViewModel\ArtViewModel.csproj" />
+    <ProjectReference Include="..\ArtModel\ArtModel.csproj" />
   </ItemGroup>
 
 </Project>

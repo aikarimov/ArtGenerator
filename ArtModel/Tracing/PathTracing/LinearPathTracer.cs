@@ -21,74 +21,14 @@ namespace ArtModel.Tracing.PathTracing
     }
 
     public class LinearPathTracer
-    {
+    { 
         public static TracingPath GetPath(
-            ArtBitmap bitmap,
-            (int x, int y) p1, (int x, int y) p2,
-            HashSet<(int x, int y)> segmentedPathCoordinates, MeanColorCalculator segmentedCalc,
-            int width)
-        {
-            MeanColorCalculator localCalculator = segmentedCalc.Copy();
-            HashSet<(int x, int y)> localPathCoordinates = new();
-            localPathCoordinates.UnionWith(segmentedPathCoordinates);
-
-            int dx = Math.Abs(p2.x - p1.x);
-            int dy = Math.Abs(p2.y - p1.y);
-
-            int sx = (p1.x < p2.x) ? 1 : -1;
-            int sy = (p1.y < p2.y) ? 1 : -1;
-
-            int err = dx - dy;
-
-            while (true)
-            {
-                if (p1.x >= 0 && p1.x < bitmap.Width && p1.y >= 0 && p1.y < bitmap.Height)
-                {
-                    CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, p1.x, p1.y, width / 2);
-                    foreach (var c in circle.Coordinates)
-                    {
-                        if (!localPathCoordinates.Contains((c.x, c.y)))
-                        {
-                            localPathCoordinates.Add((c.x, c.y));
-                            localCalculator.AddColor(bitmap[c.x, c.y]);
-                        }
-                    }
-                }
-
-                if (p1.x == p2.x && p1.y == p2.y)
-                    break;
-
-                int e2 = 2 * err;
-                if (e2 > -dy)
-                {
-                    err = err - dy;
-                    p1.x = p1.x + sx;
-                }
-                if (e2 < dx)
-                {
-                    err = err + dx;
-                    p1.y = p1.y + sy;
-                }
-            }
-
-            Color meanColor = localCalculator.GetMeanColor();
-            double dispersion = StrokeUtils.GetDispersion(bitmap, meanColor, localPathCoordinates);
-
-            return new TracingPath()
-            {
-                Coordinates = localPathCoordinates,
-                MeanColor = meanColor,
-                Dispersion = dispersion,
-                Calculator = localCalculator
-            };
-        }
-
-        public static TracingPath GetPath2(
             ArtBitmap bitmap,
             (int x, int y) pointStart,
             (int x, int y) pointEnd,
             HashSet<(int x, int y)> segmentedPathCoordinates,
-            MeanColorCalculator segmentedCalc, int width)
+            MeanColorCalculator segmentedCalc, 
+            int width)
         {
             int radius = width / 2;
 

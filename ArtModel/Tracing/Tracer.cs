@@ -5,40 +5,47 @@ using ArtModel.StrokeLib;
 using System.Drawing;
 using ArtModel.Core;
 using ArtModel.Tracing.PathTracing;
+using System.Text;
+using System.Collections;
+using System.Drawing.Imaging;
 
 namespace ArtModel.Tracing
 {
-
-    public class Tracer
+    public class Tracer : IEnumerable<ArtBitmap>
     {
         private ArtBitmap _origBm;
 
-        private string _outputPath;
+        private PathSettings _pathSettings;
 
         private int Genetaions;
 
         private ArtModelSerializer _artModelSerializer;
 
-        public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, string outputPath)
+        public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, PathSettings pathSettings)
         {
             _artModelSerializer = serealizer;
-            _outputPath = outputPath;
+            _pathSettings = pathSettings;
             Genetaions = serealizer.GenerationsNumber;
+
             _origBm = originalCanvas;
         }
 
-        public void GenerateArtByLayers()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            _origBm.Save(_outputPath, "ArtOriginal");
-            StrokeLibrary strokeLibrary = new StrokeLibrary(1);
+            return GetEnumerator();
+        }
 
-            ArtBitmap artificial_render = new ArtBitmap(_origBm.Width, _origBm.Height);
-            artificial_render.FillColor(Color.White);
+        public IEnumerator<ArtBitmap> GetEnumerator()
+        {
+            _origBm.Save(_pathSettings.OutputPath, "ArtOriginal");
+            StrokeLibrary strokeLibrary = new StrokeLibrary(_pathSettings.LibraryPath, _artModelSerializer, 1);
 
-            ArtBitmap artificial_model = new ArtBitmap(_origBm.Width, _origBm.Height);
-            artificial_model.FillColor(Color.White);
+            ArtBitmap artificial_render = new ArtBitmap(_origBm.Width, _origBm.Height).FillColor(Color.White);
+            ArtBitmap artificial_model = new ArtBitmap(_origBm.Width, _origBm.Height).FillColor(Color.White);
+            ArtBitmap _shapesBm = new ArtBitmap(_origBm.Width, _origBm.Height).FillColor(Color.White);
+            ArtBitmap _frameBm = new ArtBitmap(_origBm.Width, _origBm.Height).FillColor(Color.White);
 
-            RandomPoolGenerator pool = new RandomPoolGenerator(_origBm.Width, _origBm.Height);
+            TracerPointDecider decider = new TracerPointDecider(_origBm, artificial_render, 1);
 
             for (int gen = 0; gen < Genetaions; gen++)
             {
@@ -49,105 +56,140 @@ namespace ArtModel.Tracing
 
                 for (int iteration = 0; iteration < localData.Iterations; iteration++)
                 {
-                    if (pool.PoolAvaliable())
+                    (int x, int y) coordinates = DecideCoordinates(decider);
+
+                    TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap);
+
+                    Stroke classified = strokeLibrary.ClassifyStroke(tracingResult, localData);
+
+                    SetupStroke(classified, tracingResult, strokeLibrary);
+
+                    WritePixelsPre(artificial_model, tracingResult.Coordinates, tracingResult.MeanColor, decider);
+                    WritePixelsFromStroke(artificial_render, classified, tracingResult, coordinates, decider);
+
+                    artificial_render.Save(_pathSettings.OutputPath, $"gen_{gen}_iter1");
+                    artificial_model.Save(_pathSettings.OutputPath, $"gen_{gen}_iter2");
+
+                    yield return artificial_render;
+
+                    /*foreach (var tr in FilterTracingResult(tracingResult))
                     {
-                        (int x, int y) coordinates = pool.GetFromPool();
-
-                        TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap);
-                        Stroke classified = strokeLibrary.ClassifyStroke(tracingResult, localData);
-
-                        SetupStroke(classified, tracingResult, strokeLibrary);
-
-                        WritePixelsPre(artificial_model, tracingResult.Coordinates, tracingResult.MeanColor);
-                        WritePixelsFromStroke(artificial_render, classified, tracingResult, coordinates, pool);
-
-                        artificial_render.Save(_outputPath, $"gen_{gen}_iter1");
-                        artificial_model.Save(_outputPath, $"gen_{gen}_iter2");
-                    }
-                    else
-                    {
-                        break;
-                    }
+                        
+                    } */   
                 }
 
-                artificial_render.Save(_outputPath, $"Generation_{gen}");
-                artificial_model.Save(_outputPath, $"Generation2_{gen}");
+                artificial_render.Save(_pathSettings.OutputPath, $"Generation_{gen}");
+                artificial_model.Save(_pathSettings.OutputPath, $"Generation2_{gen}");
+
+                yield return artificial_render;
             }
-
-
-            // Детальная обработка
-            ArtGeneration detailedGen = new ArtGeneration()
-            {
-                Iterations = 1,
-                StrokeWidth_Min = 4,
-                StrokeWidth_Max = 5,
-                StrokeLength_Min = 0,
-                StrokeLength_Max = 20,
-                BlurSigma = 1,
-                DispersionBound = 100,
-            };
-            ;
-            ArtBitmap blurredDetailed = GaussianBlur.ApplyBlur(_origBm, detailedGen.BlurSigma);
-            double[,] blurredBrightnessdDetailed = GaussianBlur.ApplyBlurToBrightnessMap(BrightnessMap.GetBrightnessMap(blurredDetailed), detailedGen.BlurSigma);
-
-            var samples = PreciseSampling(_origBm, artificial_render);
-
-            foreach (var point in samples)
-            {
-                TracingResult tracingResult = GetSegmentedTracePath(detailedGen, blurredDetailed, point, blurredBrightnessdDetailed);
-                Stroke classified = strokeLibrary.ClassifyStroke(tracingResult, detailedGen);
-
-                SetupStroke(classified, tracingResult, strokeLibrary);
-
-                WritePixelsPre(artificial_model, tracingResult.Coordinates, tracingResult.MeanColor);
-                WritePixelsFromStroke(artificial_render, classified, tracingResult, point);
-            }
-
-            artificial_render.Save(_outputPath, $"Generation_detailed");
-            artificial_model.Save(_outputPath, $"Generation_detailed2");
         }
 
-
-        long time_path = 0;
-        long time_path2 = 0;
-
-        public TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap)
+        private (int x, int y) DecideCoordinates(TracerPointDecider decider)
         {
-            TracingResult tracingResult = new TracingResult();
-            tracingResult.StrokeProperties.SetProperty(StrokeProperty.Points, 1);
+            return decider.GetRandomPointPool();
+            if (decider.Pool.PoolPercent() > 0.05)
+            {
+                var point = decider.GetRandomPointPool();
+                return point;
+            }
+            else
+            {
+                var point = decider.GetMaxDispersionPoint();
+                return point;
+            }
+        }
 
+        // Обработка результата, приведение к более оптимальному
+        private TracingResult[] FilterTracingResult(TracingResult tracingResult)
+        {
+            double points = tracingResult.SP.GetP(StrokeProperty.Points);
+
+            if (points == 2)
+            {
+                double len = tracingResult.SP.GetP(StrokeProperty.Length);
+
+                // Превращаем слишком короткие мазки в точку
+                if (len <= 5)
+                {
+                    tracingResult.SP.SetP(StrokeProperty.Points, 1);
+                }
+
+                return [tracingResult];
+            }
+
+            if (points == 3)
+            {
+                double len = tracingResult.SP.GetP(StrokeProperty.Length);
+                double angle = tracingResult.SP.GetP(StrokeProperty.Angle1);
+                double fraction = tracingResult.SP.GetP(StrokeProperty.Fraction);
+
+                // Превращаем слишком короткие мазки в точку
+                if (Math.Abs(angle) <= 10)
+                {
+                    tracingResult.SP.SetP(StrokeProperty.Points, 2);
+                }
+
+                if (len <= 5)
+                {
+                    //tracingResult.SP.SetP(StrokeProperty.Points, 1);
+                }
+
+                return [tracingResult];
+            }
+
+            return [tracingResult];
+        }
+
+        private TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap)
+        {
             double tolerance = genData.DispersionBound;
             int lenMin = genData.StrokeLength_Min;
             int lenMax = genData.StrokeLength_Max;
 
-            CircleTracingResult roi = CircleTracer.TraceIterative(genData, bitmap, startingPoint);
-            tracingResult.StrokeProperties.SetProperty(StrokeProperty.Width, roi.Width);
+            TracingResult tracingResult = new TracingResult();
+            tracingResult.SP.SetP(StrokeProperty.Points, 1);
 
+            CircleTracingResult roi = CircleTracer.TraceIterative(genData, bitmap, startingPoint);
             MeanColorCalculator segmentedCalculator = roi.Calculator;
             HashSet<(int x, int y)> segmentedPathCoordinates = roi.Coordinates;
+            tracingResult.SP.SetP(StrokeProperty.Width, roi.Width);
 
-            (int x, int y) currentSegmentPoint = startingPoint;
-            double segmentedLength = roi.Width;
+            Dictionary<int, (int x, int y)> pathPoints = new() { { 1, startingPoint } };
+            Dictionary<int, double> pathSegmentLengths = new();
+
+            double segmentedLength = 0;
+
+            // Условие, чтобы досрочно прервать формирование мазка
+            bool cancel_stroke_path = false;
 
             // Построение каждого сегмента
-            for (int segment = 1; segment < 2; segment++)
+            // Начинаем строить вторую точку, одна и так есть 100%
+            for (int segmentPoint = 2; segmentPoint <= 2; segmentPoint++)
             {
-                Task[] tasks = new Task[lenMax - lenMin + 1];
-                TracingPath[] tracingPaths = new TracingPath[lenMax - lenMin + 1];
+                if (cancel_stroke_path) { break; }
 
-                double newAngle = brightnessMap[currentSegmentPoint.y, currentSegmentPoint.x];
-                newAngle = AngleNormal(newAngle);
+                var currPoint = pathPoints[segmentPoint - 1];
 
-                switch (segment)
+                double newAngle;
+                switch (segmentPoint)
                 {
-                    case 1:
-                        tracingResult.MainAngle = newAngle;
+                    // Если строится 2я точка, то это просто прямой мазок. Не нужна доп. обработка
+                    case 2:
+                        newAngle = NormalAngle(brightnessMap[currPoint.y, currPoint.x]);
+                        tracingResult.MainAbsAngle = newAngle;
                         break;
-                        /* case 2:
-                             tracingResult.StrokeProperties.SetProperty(StrokeProperty.Angle, newAngle);
-                             break;*/
+                    // Если строится 3+ точка, надо смотреть на угол
+                    default:
+                        var prevPoint = pathPoints[segmentPoint - 2];
+                        var angles = GetNewAngle(brightnessMap[currPoint.y, currPoint.x], prevPoint, currPoint);
+                        newAngle = angles.absAngle;
+                        tracingResult.SP.SetP(StrokeProperty.Angle1, angles.leftOrRight * angles.relAngle / Math.PI * 180);
+                        break;
                 }
 
+                Task[] tasks = new Task[lenMax - lenMin + 1];
+                TracingPath[] tracingPaths = new TracingPath[lenMax - lenMin + 1];
                 for (int len = lenMin; len <= lenMax; len++)
                 {
                     int index = len - lenMin;
@@ -155,13 +197,8 @@ namespace ArtModel.Tracing
 
                     tasks[index] = Task.Run(() =>
                     {
-                        (int x, int y) offsetedPoint = VectorMath.PointOffsetClamp(currentSegmentPoint, newAngle, len_i, bitmap.Width - 1, bitmap.Height - 1);
-
-                        var watch2 = System.Diagnostics.Stopwatch.StartNew();
-                        TracingPath path = LinearPathTracer.GetPath2(bitmap, currentSegmentPoint, offsetedPoint, segmentedPathCoordinates, segmentedCalculator, roi.Width);
-                        watch2.Stop();
-                        time_path2 += watch2.ElapsedMilliseconds;
-
+                        (int x, int y) offsetedPoint = VectorMath.PointOffsetClamp(currPoint, newAngle, len_i, bitmap.Width - 1, bitmap.Height - 1);
+                        TracingPath path = LinearPathTracer.GetPath(bitmap, currPoint, offsetedPoint, segmentedPathCoordinates, segmentedCalculator, roi.Width);
                         path.Length = len_i;
                         path.EndPoint = offsetedPoint;
                         tracingPaths[index] = path;
@@ -170,39 +207,39 @@ namespace ArtModel.Tracing
 
                 Task.WaitAll(tasks);
 
+                cancel_stroke_path = true;
                 for (int i = tracingPaths.Length - 1; i >= 0; i--)
                 {
                     TracingPath tpath = tracingPaths[i];
+
+                    // Найден путь, у которого дисперсия допустимая
                     if (tpath.Dispersion <= tolerance)
                     {
-                        segmentedLength += tpath.Length;
-                        tracingResult.StrokeProperties.SetProperty(StrokeProperty.Length, segmentedLength);
-
-                        // Значит, что минимальная дисперсия достигнута на мазке минимальной длины, а значит его нужно окончить, ведь это точка
+                        // Путь является минимально возможным - значит окончить мазок
                         if (tpath.Length <= genData.StrokeLength_Min)
                         {
-                            tracingResult.StrokeProperties.SetProperty(StrokeProperty.Points, 1);
-
-                            segmentedCalculator = tpath.Calculator;
-                            segmentedPathCoordinates.UnionWith(tpath.Coordinates);
-
-                            tracingResult.Coordinates = segmentedPathCoordinates;
-                            tracingResult.MeanColor = segmentedCalculator.GetMeanColor();
-
-                            return tracingResult;
+                            cancel_stroke_path = true;
+                            break;
                         }
                         else
                         {
-                            tracingResult.StrokeProperties.SetProperty(StrokeProperty.Points, 2);
+                            cancel_stroke_path = false;
+
+                            segmentedLength += tpath.Length;
+
+                            tracingResult.SP.SetP(StrokeProperty.Length, segmentedLength);
+                            tracingResult.SP.SetP(StrokeProperty.LtoW, segmentedLength / roi.Width);
+                            tracingResult.SP.SetP(StrokeProperty.Fraction, (segmentedLength - tpath.Length) * 100 / segmentedLength);
 
                             segmentedCalculator = tpath.Calculator;
                             segmentedPathCoordinates.UnionWith(tpath.Coordinates);
 
-                            currentSegmentPoint = tpath.EndPoint;
 
+                            tracingResult.SP.SetP(StrokeProperty.Points, segmentPoint);
+                            pathPoints.Add(segmentPoint, tpath.EndPoint);
+                            pathSegmentLengths.Add(segmentPoint - 1, tpath.Length);
                             break;
                         }
-
                     }
                 }
             }
@@ -212,40 +249,61 @@ namespace ArtModel.Tracing
 
             return tracingResult;
 
-
-            double AngleNormal(double angle)
+            (double absAngle, double relAngle, int leftOrRight) GetNewAngle(double absAngle, (int x, int y) prevPoint, (int x, int y) currPoint)
             {
-                double newAngle = (angle + Math.PI / 2) % (Math.Tau);
+                // Взяли нормаль к углу
+                absAngle = NormalAngle(absAngle);
 
-                /*if ((angle - newAngle) % (Math.Tau) > (Math.PI / 2))
+                // Нашли 3ю точку по вектору
+                (int x, int y) newPoint = VectorMath.PointOffset(currPoint, absAngle, 10);
+
+                // Относительный угол между тремя точками, от 0 до PI
+                double newRelAngle = VectorMath.AngleBy3Points(prevPoint, currPoint, newPoint);
+
+                // Если относительный угол между сегментами мазка оказался острым, разворачиваем на 180 градусов всё
+                if (newRelAngle < Math.PI / 2)
                 {
-                    newAngle = (newAngle + Math.PI) % (Math.Tau);
-                }*/
-                return newAngle;
+                    newRelAngle += Math.PI;
+                    absAngle += Math.PI;
+                    newPoint = VectorMath.PointOffset(currPoint, absAngle, 10);
+                }
+
+                // На этом этапе у нас точно есть правильный расчётный сегмента из трёх точек
+
+                int leftOrRight = -VectorMath.LeftOrRight(prevPoint, currPoint, newPoint);
+
+                // Делаем относительный угол таким, чтобы подходил под классификацию в библиотеке. Так как отклонение в градусах идёт от угла PI
+                newRelAngle = Math.PI - newRelAngle;
+
+                return (absAngle, newRelAngle, leftOrRight);
             }
 
+            double NormalAngle(double angle)
+            {
+                return (angle + Math.PI / 2) % (Math.Tau);
+            }
         }
-
 
         private void SetupStroke(Stroke stroke, TracingResult tracingResult, StrokeLibrary strokeLibrary)
         {
             double resizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, stroke);
             stroke.Resize(resizeCoef);
-            stroke.Rotate(tracingResult.MainAngle);
+            stroke.Rotate(tracingResult.MainAbsAngle);
         }
 
-        private void WritePixelsPre(ArtBitmap map, HashSet<(int x, int y)> coordonates, Color color, RandomPoolGenerator pool = null)
+        private void WritePixelsPre(ArtBitmap map, HashSet<(int x, int y)> coordonates, Color color, TracerPointDecider decider = null)
         {
-            //pool?.RemoveFromPool(coordonates);
+            
             foreach (var c in coordonates)
             {
+                decider?.Pool.RemoveFromPool((c.x, c.y));
                 map[c.x, c.y] = color;
             }
         }
 
-        private void WritePixelsFromStroke(ArtBitmap original, Stroke stroke, TracingResult tracingResult, (int x, int y) globalPoint, RandomPoolGenerator pool = null)
+        private void WritePixelsFromStroke(ArtBitmap original, Stroke stroke, TracingResult tracingResult, (int x, int y) globalPoint, TracerPointDecider decider = null)
         {
-            globalPoint = PointOffset(globalPoint, (tracingResult.MainAngle + Math.PI), tracingResult.StrokeProperties.GetProperty(StrokeProperty.Width) / 2);
+            globalPoint = PointOffset(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2);
 
             Color color = tracingResult.MeanColor;
 
@@ -260,7 +318,7 @@ namespace ArtModel.Tracing
                     if (original.IsInside(globalX, globalY) && strokeCol.R < 255)
                     {
                         original[globalX, globalY] = CalculateAlpha(original[globalX, globalY], color, (255.0 - strokeCol.R) / 255.0);
-                        pool?.RemoveFromPool((globalX, globalY));
+                        decider?.Pool.RemoveFromPool((globalX, globalY));
                     }
                 }
             }
@@ -281,106 +339,9 @@ namespace ArtModel.Tracing
             }
         }
 
+
+
         // Точки с наибольшей ошибкой в квадратах с наибольшей ошибкой
-        private HashSet<(int x, int y)> PreciseSampling(ArtBitmap original, ArtBitmap artificial)
-        {
-            int square_size = 100;
-            int max_error_squares = 100; // Сколько взять квадратов
-            int max_error_points = 1500; // Точки на квадрат
-            int sample_size = square_size;
 
-            HashSet<(int x, int y)> maxErrorPoints = new HashSet<(int x, int y)>();
-
-            Dictionary<(int x, int y), double> errorCache = new Dictionary<(int x, int y), double>();
-
-            List<Rectangle> squares = GetSquares();
-
-            squares.Sort((s1, s2) => CalculateSquareError(s2).CompareTo(CalculateSquareError(s1)));
-
-            Parallel.ForEach(squares.Take(max_error_squares), square =>
-            {
-                List<(int x, int y)> squareMaxErrorPoints = GetPointsWithMaxErrorInSquare(square);
-
-                lock (maxErrorPoints)
-                {
-                    foreach (var point in squareMaxErrorPoints)
-                    {
-                        maxErrorPoints.Add(point);
-                    }
-                }
-            });
-
-            return maxErrorPoints;
-
-            List<(int x, int y)> GetPointsWithMaxErrorInSquare(Rectangle square)
-            {
-                List<(int x, int y)> allPointsInSquare = new List<(int x, int y)>();
-                for (int x = square.X; x < square.Right; x++)
-                {
-                    for (int y = square.Y; y < square.Bottom; y++)
-                    {
-                        allPointsInSquare.Add((x, y));
-                    }
-                }
-
-                allPointsInSquare.Sort((p1, p2) => errorCache[p2].CompareTo(errorCache[p1]));
-
-                List<(int x, int y)> maxErrorPoints = new List<(int x, int y)>();
-                maxErrorPoints.AddRange(allPointsInSquare.Take(max_error_points));
-
-                return maxErrorPoints;
-            }
-
-            double CalculateSquareError(Rectangle square)
-            {
-                double totalError = 0;
-
-                for (int x = square.X; x < square.Right; x++)
-                {
-                    for (int y = square.Y; y < square.Bottom; y++)
-                    {
-                        (int x, int y) pixel = (x, y);
-
-                        if (errorCache.TryGetValue(pixel, out double pixelError))
-                        {
-                            totalError += pixelError;
-                        }
-                        else
-                        {
-                            Color originalColor = original[x, y];
-                            Color artificialColor = artificial[x, y];
-                            double pixelColorDifference = ColorEuclideanDistance(originalColor, artificialColor);
-                            errorCache[pixel] = pixelColorDifference;
-                            totalError += pixelColorDifference;
-                        }
-                    }
-                }
-
-                return totalError;
-            }
-
-            double ColorEuclideanDistance(in Color color1, in Color color2)
-            {
-                double redDiff = color1.R - color2.R;
-                double greenDiff = color1.G - color2.G;
-                double blueDiff = color1.B - color2.B;
-                return Math.Sqrt(redDiff * redDiff + greenDiff * greenDiff + blueDiff * blueDiff);
-            }
-
-            List<Rectangle> GetSquares()
-            {
-                List<Rectangle> list = new List<Rectangle>();
-
-                for (int x = 0; x < original.Width; x += sample_size)
-                {
-                    for (int y = 0; y < original.Height; y += sample_size)
-                    {
-                        list.Add(new Rectangle(x, y, Math.Min(square_size, original.Width - x), Math.Min(square_size, original.Height - y)));
-                    }
-                }
-
-                return list;
-            }
-        }
     }
 }

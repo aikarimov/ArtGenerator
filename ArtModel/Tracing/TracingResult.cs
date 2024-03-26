@@ -11,15 +11,17 @@ namespace ArtModel.Tracing
     {
         public TracingResult()
         {
-            StrokeProperties = new StrokePropertyCollection();
+            SP = new StrokePropertyCollection<double>();
         }
 
-        public StrokePropertyCollection StrokeProperties { get; set; }
+        public StrokePropertyCollection<double> SP { get; set; }
 
         public Color MeanColor { get; set; }
 
         public HashSet<(int x, int y)> Coordinates { get; set; }
 
-        public double MainAngle { get; set; }
+        public double MainAbsAngle { get; set; }
+
+        public int Status { get; set; }
     }
 }

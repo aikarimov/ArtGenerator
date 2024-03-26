@@ -42,8 +42,8 @@ namespace ArtModel.ImageModel.ImageProccessing
         {
             byte[,] gray = ImageFiltering.ToGrayScale(origBm);
 
-            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX2);
-            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY2);
+            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX3);
+            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY3);
 
             double[,] result = new double[origBm.Height, origBm.Width];
 

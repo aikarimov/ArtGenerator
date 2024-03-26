@@ -8,7 +8,7 @@
 
         private Random _random;
 
-        public RandomPoolGenerator(int width, int height)
+        public RandomPoolGenerator(int width, int height, int randomSeed = -1)
         {
             _coordsData = new HashSet<(int, int)>();
 
@@ -20,7 +20,8 @@
                 }
             }
             _initialSize = _coordsData.Count;
-            _random = new Random(0);
+
+            _random = randomSeed == -1 ? new Random() : new Random(randomSeed);
         }
 
         public void RemoveFromPool(HashSet<(int, int)> pixels)
@@ -46,12 +47,30 @@
             return (_coordsData.Count / _initialSize);
         }
 
-        public (int x, int y) GetFromPool()
+        public (int x, int y) GetFromPoolRandom()
         {
-            int rand = _random.Next(_coordsData.Count);
-            (int x, int y) coords = _coordsData.ElementAt(rand);
-            _coordsData.Remove(coords);
-            return coords;
+            try
+            {
+                int rand = _random.Next(_coordsData.Count);
+                (int x, int y) pixel = _coordsData.ElementAt(rand);
+                _coordsData.Remove(pixel);
+                return pixel;
+            }
+            catch
+            {
+                return (0, 0);
+            }
+
+
+
+        }
+
+        public IEnumerable<(int x, int y)> GetFromPool()
+        {
+            foreach (var coords in _coordsData)
+            {
+                yield return coords;
+            }
         }
     }
 }

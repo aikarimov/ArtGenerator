@@ -7,7 +7,7 @@ namespace ArtModel.ImageProccessing
 {
     public unsafe class ArtBitmap
     {
-        protected Bitmap _bitmap;
+        protected Bitmap bitmap;
 
         private BitmapData _bitmapData;
 
@@ -19,22 +19,15 @@ namespace ArtModel.ImageProccessing
 
         public ArtBitmap(Bitmap bitmap)
         {
-            _bitmap = bitmap;
-            Width = _bitmap.Width;
-            Height = _bitmap.Height;
+            this.bitmap = bitmap;
+            Width = this.bitmap.Width;
+            Height = this.bitmap.Height;
             LockBitmap();
         }
 
-        public ArtBitmap(int width, int height, bool transparent = false)
+        public ArtBitmap(int width, int height)
         {
-            _bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-            if (transparent)
-            {
-                using (Graphics g = Graphics.FromImage(_bitmap))
-                {
-                    g.Clear(Color.Transparent);
-                }
-            }
+            bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
             Width = width;
             Height = height;
             LockBitmap();
@@ -48,14 +41,14 @@ namespace ArtModel.ImageProccessing
         public void MakeTransparent()
         {
             UnlockBitmap();
-            _bitmap.MakeTransparent();
+            bitmap.MakeTransparent();
             LockBitmap();
         }
 
-        public void FillColor(Color color)
+        public ArtBitmap FillColor(Color color)
         {
             UnlockBitmap();
-            using (Graphics g = Graphics.FromImage(_bitmap))
+            using (Graphics g = Graphics.FromImage(bitmap))
             {
                 using (SolidBrush brush = new SolidBrush(color))
                 {
@@ -63,27 +56,28 @@ namespace ArtModel.ImageProccessing
                 }
             }
             LockBitmap();
+            return this;
         }
 
         public ArtBitmap Copy()
         {
-            ArtBitmap artBitmap = new ArtBitmap((Bitmap)_bitmap.Clone());
-            Width = _bitmap.Width;
-            Height = _bitmap.Height;
+            ArtBitmap artBitmap = new ArtBitmap((Bitmap)bitmap.Clone());
+            Width = bitmap.Width;
+            Height = bitmap.Height;
 
             return artBitmap;
         }
 
         public void LockBitmap()
         {
-            Rectangle rect = new Rectangle(0, 0, _bitmap.Width, _bitmap.Height);
-            _bitmapData = _bitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+            Rectangle rect = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+            _bitmapData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             _pixelData = (byte*)_bitmapData.Scan0;
         }
 
         public void UnlockBitmap()
         {
-            _bitmap.UnlockBits(_bitmapData);
+            bitmap.UnlockBits(_bitmapData);
         }
 
         public Color this[int x, int y]
@@ -119,7 +113,7 @@ namespace ArtModel.ImageProccessing
         {
             try
             {
-                _bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
+                bitmap.Save($"{outputPath}\\{fileName}.{ImageFormat.Png}");
             }
             catch
             {
