@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ArtModel.Core
 {
@@ -11,49 +12,35 @@ namespace ArtModel.Core
     [Serializable()]
     public class ArtModelSerializer
     {
-        public int GenerationsNumber { get; init; }
-
-        public ArtUserInput UserInput { get; init; }
+        public ArtUserInput UserInput { get; set; }
 
         public List<ArtGeneration> Generations { get; set; }
 
-        // Методы
-        public static string SerializeToJson(ArtModelSerializer artModel)
+        public ArtModelSerializer()
         {
-            return JsonSerializer.Serialize(artModel, new JsonSerializerOptions { WriteIndented = true });
-        }
-
-        public static ArtModelSerializer DeserializeFromJson(string json)
-        {
-            return JsonSerializer.Deserialize<ArtModelSerializer>(json)!;
-        }
-
-        public static void SerializeToFile(ArtModelSerializer artModel, string filePath)
-        {
-            File.WriteAllText(filePath, SerializeToJson(artModel));
         }
 
         public ArtModelSerializer(ArtUserInput inputData)
         {
             UserInput = inputData;
             Generations = new List<ArtGeneration>();
-            GenerationsNumber = inputData.Generations;
+            int generationsNumber = inputData.Generations;
 
             // Границы для деления значений
-            double[] borders_normal = new double[GenerationsNumber];
-            for (int gen = 0; gen < GenerationsNumber; gen++)
+            double[] borders_normal = new double[generationsNumber];
+            for (int gen = 0; gen < generationsNumber; gen++)
             {
-                borders_normal[gen] = Math.Round((gen * 1.0) / (GenerationsNumber - 1), 3);
+                borders_normal[gen] = Math.Round((gen * 1.0) / (generationsNumber - 1), 3);
             }
 
-            double[] borders_pairs = new double[GenerationsNumber + 1];
-            for (int gen = 0; gen <= GenerationsNumber; gen++)
+            double[] borders_pairs = new double[generationsNumber + 1];
+            for (int gen = 0; gen <= generationsNumber; gen++)
             {
-                borders_pairs[gen] = Math.Round((gen * 1.0) / GenerationsNumber, 3);
+                borders_pairs[gen] = Math.Round((gen * 1.0) / generationsNumber, 3);
             }
 
             // Генерация слоёв
-            for (int gen = 0; gen < GenerationsNumber; gen++)
+            for (int gen = 0; gen < generationsNumber; gen++)
             {
                 ArtGeneration artGeneration = new ArtGeneration();
                 double factor_down = borders_pairs[gen];
@@ -78,7 +65,7 @@ namespace ArtModel.Core
                 artGeneration.DispersionBound = (int)(inputData.Dispersion_Min + dispersion_interval * factor_norm);
 
                 // Итерации
-                int iterations = (int)((inputData.Width * inputData.Height) / (Math.Pow(artGeneration.StrokeWidth_Max / 2, 2.5)));
+                int iterations = (int)((1000 * 1000) / (Math.Pow(artGeneration.StrokeWidth_Max / 2, 2.5)));
                 artGeneration.Iterations = iterations;
 
                 Generations.Add(artGeneration);
@@ -107,13 +94,11 @@ namespace ArtModel.Core
     // Пользовательский ввод
     public class ArtUserInput
     {
-        [NonSerialized()]
+        [JsonIgnore]
         public static readonly ArtUserInput Default = new ArtUserInput()
         {
             Generations = 7,
-
-            Width = 200,
-            Height = 200,
+            Segments = 1,
 
             StrokeWidth_Min = 8,
             StrokeWidth_Max = 80,
@@ -133,10 +118,8 @@ namespace ArtModel.Core
         // Количество поколений рисовки
         public int Generations { get; set; }
 
-
-        // Ширина и высота холста
-        public int Width { get; set; }
-        public int Height { get; set; }
+        // Сегментность мазков
+        public int Segments { get; set; }
 
         // Минимальная и максимальная толщина кисти
         public int StrokeWidth_Min { get; set; }

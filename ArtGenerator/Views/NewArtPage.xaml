@@ -4,11 +4,40 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:ArtGenerator.Views"
-      mc:Ignorable="d" 
-      d:DesignHeight="450" d:DesignWidth="800"
-      Title="NewArtPage">
+      mc:Ignorable="d"
+      Title="NewArtPage" Width="620" Height="860">
 
-    <Grid Background="White">
-        <TextBlock Text="Text" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <Grid Background="White" Margin="5,-18,-5,18">
+        <Label Content="Настройки арта" HorizontalAlignment="Left" VerticalAlignment="Top" Height="67" Width="359" FontWeight="Bold" Background="{x:Null}" HorizontalContentAlignment="Center" FontSize="36"/>
+        <Label Content="Изображение:" Margin="14,84,419,733" FontSize="24"/>
+        <Button x:Name="button_load" Content="Загрузить" Margin="14,127,474,693" BorderBrush="Black" Foreground="Black" Background="White" FontSize="24" HorizontalContentAlignment="Left" Click="button_load_Click"/>
+        <Image x:Name="targe_image" HorizontalAlignment="Left" Height="201" Margin="332,14,0,0" VerticalAlignment="Top" Width="210" UseLayoutRounding="False" Source="/Resources/drawable/no-image.png" OpacityMask="White"/>
+        <Label Content="Поколения:" Margin="15,275,451,542" FontSize="24"/>
+        <Label Content="Длина кисти (min):" Margin="16,354,372,463" FontSize="24"/>
+        <Label Content="Длина кисти (max):" Margin="16,396,372,421" FontSize="24"/>
+        <Label Content="Длина кисти (max):" Margin="16,396,372,421" FontSize="24"/>
+        <Label Content="Блюр изображения (min):" Margin="18,540,308,277" FontSize="24"/>
+        <Label Content="Блюр изображения (max):" Margin="18,583,290,234" FontSize="24"/>
+        <Label Content="Дисперсия (min):" Margin="18,626,396,191" FontSize="24"/>
+        <Label Content="Дисперсия (max):" Margin="18,669,394,148" FontSize="24"/>
+        <TextBox x:Name="input_gen" HorizontalAlignment="Left" Margin="157,279,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushL_min" HorizontalAlignment="Left" Margin="240,358,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushL_max" HorizontalAlignment="Left" Margin="252,404,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_blur_min" HorizontalAlignment="Left" Margin="320,548,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_blur_max" HorizontalAlignment="Left" Margin="320,591,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_dispersion_min" HorizontalAlignment="Center" Margin="0,634,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_dispersion_max" HorizontalAlignment="Left" Margin="230,677,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <Button x:Name="button_confirm" Content="Подтвердить" HorizontalAlignment="Right" VerticalAlignment="Bottom" Height="61" Width="216" FontSize="24" Click="button_confirm_Click" Margin="0,0,32,20"/>
+        <Button x:Name="button_open_json" Content="Открыть json" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="61" Width="216" FontSize="24" Click="button_open_json_Click" Margin="16,0,0,20"/>
+        <Label x:Name="json_error_label" Content="Json содержит ошибки!" Margin="17,718,332,100" FontSize="24" Background="#FFFFA5A5" Visibility="Hidden"/>
+        <Button x:Name="button_pick_style" Content="Выбрать стиль" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="40" Width="198" FontSize="24" BorderBrush="Black" Background="White" HorizontalContentAlignment="Left" Margin="14,0,0,645" Click="button_pick_style_Click"/>
+        <Button x:Name="button_save_style" Content="Сохранить стиль" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="40" Width="198" FontSize="24" BorderBrush="Black" Background="White" HorizontalContentAlignment="Left" Margin="14,0,0,595" Click="button_save_style_Click"/>
+        <Label Content="Ширина кисти (min):" Margin="16,444,368,373" FontSize="24"/>
+        <Label Content="Ширина кисти (max):" Margin="20,492,362,325" FontSize="24"/>
+        <TextBox x:Name="input_brushW_min" HorizontalAlignment="Left" Margin="266,452,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushW_max" HorizontalAlignment="Left" Margin="266,500,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <Button x:Name="button_cancel" Content="X" HorizontalAlignment="Right" VerticalAlignment="Top" Height="38" Width="40" FontSize="24" Margin="0,10,10,0" Click="button_cancel_Click"/>
+        <Label x:Name="segments_label" Content="Сегменты:" Margin="15,310,475,507" FontSize="24"/>
+        <TextBox x:Name="input_segments" HorizontalAlignment="Left" Margin="157,319,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
     </Grid>
 </Page>

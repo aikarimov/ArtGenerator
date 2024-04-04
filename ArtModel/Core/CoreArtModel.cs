@@ -2,7 +2,6 @@
 using ArtModel.StrokeLib;
 using ArtModel.Tracing;
 using System.Drawing;
-using System.Text.Json;
 
 namespace ArtModel.Core
 {
@@ -26,22 +25,13 @@ namespace ArtModel.Core
             _originalCanvas = new ArtBitmap(bitmap);
             _modelSerializer = serializer;
             _pathSettings = pathSettings;
-
-            _pathSettings.LibraryPath = "..\\..\\..\\..\\ArtModel\\StrokeLib\\SourceLib";
         }
 
-        public void Iterate()
+        public Tracer CreateTracer()
         {
-            Tracer tracer = new Tracer(_originalCanvas, _modelSerializer, _pathSettings);
-
-            foreach (var bitmap in tracer)
-            {
-
-            }
-
-
-
-            _originalCanvas.UnlockBitmap();
+            CancellationToken token = new CancellationToken();
+            Tracer tracer = new Tracer(_originalCanvas, _modelSerializer, _pathSettings, token);
+            return tracer;
         }
     }
 }
