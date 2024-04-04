@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Numerics;
 
 namespace ArtModel.ImageProccessing
 {
@@ -120,5 +119,7 @@ namespace ArtModel.ImageProccessing
                 Debug.WriteLine($"Error writing {fileName} to file {outputPath}");
             }
         }
+
+        public Bitmap GetBitmap() { return bitmap; }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using ArtModel.ImageProccessing;
-using ArtModel.StrokeLib;
 using ArtModel.Tracing;
 using System.Drawing;
 
@@ -27,9 +26,8 @@ namespace ArtModel.Core
             _pathSettings = pathSettings;
         }
 
-        public Tracer CreateTracer()
+        public Tracer CreateTracer(CancellationToken token)
         {
-            CancellationToken token = new CancellationToken();
             Tracer tracer = new Tracer(_originalCanvas, _modelSerializer, _pathSettings, token);
             return tracer;
         }

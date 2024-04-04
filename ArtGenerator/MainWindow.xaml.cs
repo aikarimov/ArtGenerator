@@ -1,14 +1,12 @@
 ﻿using ArtGenerator.Views;
 using ArtModel.Core;
-using ArtModel.ImageProccessing;
 using Microsoft.Win32;
 using System.Drawing;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Input;
-using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace ArtGenerator
 {
@@ -23,34 +21,6 @@ namespace ArtGenerator
             InitializeComponent();
         }
 
-        private void OnOpenNewFile()
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.InitialDirectory = inputPath.Text;
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                string filePath = openFileDialog.FileName;
-                ProcessSelectedFile(filePath);
-            }
-        }
-
-        private void ProcessSelectedFile(string filePath)
-        {
-            using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-            {
-                Bitmap inputBitmap = (Bitmap)System.Drawing.Image.FromStream(fileStream);
-
-                ArtUserInput input = ArtUserInput.Default;
-                // input.Width = inputBitmap.Width;
-                //input.Height = inputBitmap.Height;
-
-                ArtModelSerializer artModelSerializer = new ArtModelSerializer(input);
-
-
-            }
-        }
-
         public void ClearFrame()
         {
             //mainFrame.Content = null;
@@ -63,22 +33,7 @@ namespace ArtGenerator
         private void OpenNewArtPage(object sender, RoutedEventArgs e)
         {
             NewArtPage newPage = new NewArtPage(inputPath.Text);
-
             mainFrame.Navigate(newPage);
-
-            // OnOpenNewFile();
-
-            /*newPage. += (sender, args) =>
-            {
-                button1.IsEnabled = true;
-                button2.IsEnabled = true;
-            };*/
-
-
-            // Устанавливаем в качестве содержимого Frame
-
-            //popupMenu.IsOpen = true;
-            //OpenFileDialog();
         }
 
         private void mainFrame_Navigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
@@ -88,73 +43,127 @@ namespace ArtGenerator
 
         }
 
-
         public void ReceiveData(ArtModelSerializer recievedSerializer, Bitmap bitmap)
         {
             var statusBar = new StatusBar();
             statusBar.Height = 40;
 
             // Прогресс бар
-            var progressBar = new ProgressBar();
-            progressBar.Width = status_stack.Width * 0.33;
-            progressBar.Height = 70;
-            progressBar.Minimum = 0;
-            progressBar.Maximum = GetModelTotalItertations(recievedSerializer);
-            progressBar.Value = 0;
+            var progressBar = new ProgressBar()
+            {
+                Width = 500,
+                Height = 100,
+                Minimum = 0,
+                Maximum = GetModelTotalItertations(recievedSerializer),
+                Value = 0
+            };
 
-            StatusBarItem statusBarItem = new StatusBarItem();
-            statusBarItem.Content = progressBar;
+            StatusBarItem statusBarItem = new StatusBarItem()
+            {
+                Width = 500,
+                Content = progressBar
+            };
+
             statusBar.Items.Add(statusBarItem);
 
             // Статус
-            var statusTextBlock = new TextBlock();
-            statusTextBlock.Text = "Подготовка...";
-            statusTextBlock.TextWrapping = TextWrapping.Wrap;
+            var statusTextBlock = new TextBlock()
+            {
+                Text = "[]",
+                TextWrapping = TextWrapping.Wrap
+            };
 
-            StatusBarItem textBlockItem = new StatusBarItem();
-            textBlockItem.Content = statusTextBlock;
+            StatusBarItem textBlockItem = new StatusBarItem()
+            {
+                Content = statusTextBlock
+            };
+
             statusBar.Items.Add(textBlockItem);
 
             // Добавление
             status_stack.Children.Add(statusBar);
 
-            // Запуск
-
+            // Настройка
             var pathSettings = new PathSettings()
             {
                 InputPath = inputPath.Text,
                 OutputPath = outputPath.Text,
-                LibraryPath = "C:\\Users\\skura\\source\\repos\\ArtGenerator\\ArtModel\\StrokeLib\\SourceLib"
+                LibraryPath = libraryPath.Text
             };
 
             CoreArtModel coreArtModel = new CoreArtModel(bitmap, recievedSerializer, pathSettings);
 
+            CancellationToken token = new CancellationToken();
+            var tracer = coreArtModel.CreateTracer(token);
+            tracer.NotifyStatusChange += (status) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    statusTextBlock.Text = status;
+                });
+            };
+
+            int generation = 0;
+            tracer.NotifyGenerationsChange += (gen) => { generation = gen; };
+
+            // Запуск генерации
             Task.Run(() =>
             {
-                var tracer = coreArtModel.CreateTracer();
 
-                foreach (ArtBitmap art in tracer)
+
+                /* if ((bool)checkbox_save_to_folder.IsChecked!)
+                 {
+                     bitmap.Save(pathSettings.OutputPath, "ArtOriginal");
+                 }*/
+
+
+
+                foreach (var art in tracer)
                 {
-                    Application.Current.Dispatcher.Invoke(new Action(() =>
+                    Application.Current.Dispatcher.Invoke(() =>
                     {
+                        var artificial_render = art.Item1;
+                        var model_render = art.Item2;
+
+                        // Отобраение прогресса на экране
+                        if ((bool)checkbox_show_progress.IsChecked!)
+                        {
+                            bitmap_image.Source = BitmapToImageSource(artificial_render.GetBitmap());
+                        }
+
+                        // Сохранение текущего слоя в папку
+                        if ((bool)checkbox_save_to_folder.IsChecked!)
+                        {
+                            artificial_render.Save(pathSettings.OutputPath, $"Render_{generation}");
+                            model_render.Save(pathSettings.OutputPath, $"Model_{generation}");
+                        }
+
                         progressBar.Value += 1;
-
-                        //art.Save(pathSettings.OutputPath, $"Generation_{gen}");
-                        //art.Save(pathSettings.OutputPath, $"Generation2_{gen}");
-
-                    }));
+                    });
                 }
             });
+        }
 
+        private BitmapImage BitmapToImageSource(Bitmap bitmap)
+        {
+            using (MemoryStream memory = new MemoryStream())
+            {
+                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Bmp);
+                memory.Position = 0;
+                BitmapImage bitmapimage = new BitmapImage();
+                bitmapimage.BeginInit();
+                bitmapimage.StreamSource = memory;
+                bitmapimage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapimage.EndInit();
 
-
+                return bitmapimage;
+            }
         }
 
         private int GetModelTotalItertations(ArtModelSerializer serializer)
         {
             int total = 0;
-            // Скип первого уровня, т.к. это "заполняющий" уровень
-            for (int i = 1; i < serializer.Generations.Count; i++)
+            for (int i = 0; i < serializer.Generations.Count; i++)
             {
                 total += serializer.Generations[i].Iterations;
             }

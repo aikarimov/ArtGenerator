@@ -1,18 +1,31 @@
-﻿using ArtModel.ImageModel.ImageProccessing;
+﻿using ArtModel.Core;
+using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.ImageProccessing;
 using ArtModel.MathLib;
 using ArtModel.StrokeLib;
-using System.Drawing;
-using ArtModel.Core;
 using ArtModel.Tracing.PathTracing;
-using System.Text;
-using System.Collections;
-using System.Drawing.Imaging;
 using ArtModel.Tracing.PointDeciding;
+using System.Collections;
+using System.Drawing;
 
 namespace ArtModel.Tracing
 {
-    public class Tracer : IEnumerable<ArtBitmap>
+    public class TracingState
+    {
+        public static readonly TracingState Prepare = new TracingState() { Locale = "Подготовка" };
+        public static readonly TracingState Blurring = new TracingState() { Locale = "Блюр" };
+        public static readonly TracingState Tracing = new TracingState() { Locale = "Отрисовка" };
+        public static readonly TracingState Shapes = new TracingState() { Locale = "Создание формы/скелетов" };
+
+        public string Locale { get; set; } = string.Empty;
+
+        public override string ToString()
+        {
+            return this.Locale;
+        }
+    }
+
+    public class Tracer : IEnumerable<(ArtBitmap, ArtBitmap)>
     {
         private ArtBitmap originalModel;
 
@@ -26,7 +39,11 @@ namespace ArtModel.Tracing
 
         private CancellationToken _token;
 
-        private (int w, int h) TileData = (15, 15);
+        public delegate void GeneraionHandler(int status);
+        public event GeneraionHandler NotifyGenerationsChange;
+
+        public delegate void StatusHandler(string status);
+        public event StatusHandler NotifyStatusChange;
 
         public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, PathSettings pathSettings, CancellationToken cancellationToken)
         {
@@ -41,8 +58,9 @@ namespace ArtModel.Tracing
             return GetEnumerator();
         }
 
-        public IEnumerator<ArtBitmap> GetEnumerator()
+        public IEnumerator<(ArtBitmap, ArtBitmap)> GetEnumerator()
         {
+            NotifyStatusChange?.Invoke(TracingState.Prepare.Locale);
             originalModel.Save(_pathSettings.OutputPath, "ArtOriginal");
             StrokeLibrary strokeLibrary = new StrokeLibrary(_pathSettings.LibraryPath, _artModelSerializer, 1);
 
@@ -58,10 +76,15 @@ namespace ArtModel.Tracing
             // Генерация рисунка по слоям
             for (int gen = 0; gen < Genetaions; gen++)
             {
+                NotifyGenerationsChange?.Invoke(gen);
+                NotifyStatusChange?.Invoke($"{TracingState.Blurring} | Поколение: {gen}");
+
                 ArtGeneration localData = _artModelSerializer.Generations[gen];
                 ArtBitmap blurredOriginalMap = GaussianBlur.ApplyBlur(originalModel, localData.BlurSigma);
                 double[,] blurredBrightnessMap = GaussianBlur.ApplyBlurToBrightnessMap(BrightnessMap.GetBrightnessMap(blurredOriginalMap), localData.BlurSigma);
                 (int x, int y) coordinates;
+
+                NotifyStatusChange?.Invoke($"{TracingState.Tracing} | Поколение: {gen}");
 
                 switch (gen)
                 {
@@ -75,13 +98,13 @@ namespace ArtModel.Tracing
                             MakeStroke();
                             decider.PostStroke();
 
-                            yield return artificialRender;
+                            yield return (artificialRender, artificialModel);
                         }
                         break;
                     // Отрисовка обычных слоёв
                     default:
                         (int w, int h) tileData = (localData.StrokeWidth_Max, localData.StrokeWidth_Max);
-                        decider = new RegionPointDecider(originalModel, artificialRender, tileData.w, tileData.h, localData.DispersionBound, 1);
+                        decider = new RegionPointDecider(originalModel, artificialRender, tileData.w, tileData.h, localData.DispersionBound);
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
@@ -99,7 +122,7 @@ namespace ArtModel.Tracing
 
                             decider.PostStroke();
 
-                            yield return artificialRender;
+                            yield return (artificialRender, artificialModel);
                         }
                         break;
                 }
@@ -117,12 +140,9 @@ namespace ArtModel.Tracing
 
                     WritePixelsModel(artificialModel, tracingResult.Coordinates, tracingResult.MeanColor, decider);
                     WritePixelsRender(artificialRender, classified, tracingResult, coordinates, decider);
-
-                    artificialRender.Save(_pathSettings.OutputPath, $"Generation_{gen}");
-                    artificialModel.Save(_pathSettings.OutputPath, $"Generation2_{gen}");
                 }
 
-                yield return artificialRender;
+                yield return (artificialRender, artificialModel);
             }
         }
 
@@ -326,7 +346,6 @@ namespace ArtModel.Tracing
         {
             foreach (var c in coordonates)
             {
-                //decider?.RemoveFromPool((c.x, c.y));
                 artificialModel[c.x, c.y] = color;
             }
         }

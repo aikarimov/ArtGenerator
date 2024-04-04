@@ -1,5 +1,4 @@
-﻿using ArtModel.Core;
-using ArtModel.ImageProccessing;
+﻿using ArtModel.ImageProccessing;
 using System.Drawing;
 
 namespace ArtModel.Tracing.PointDeciding
@@ -70,8 +69,6 @@ namespace ArtModel.Tracing.PointDeciding
 
         private ArtBitmap _artificial;
 
-        private Random _random;
-
         private Tile[,] _tiles;
 
         private List<(int x, int y)> _avaliableTiles;
@@ -84,15 +81,13 @@ namespace ArtModel.Tracing.PointDeciding
 
         private double _dispersionBound;
 
-        public RegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound, int randomSeed = -1)
+        public RegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound)
         {
             _original = original;
             _artificial = arificial;
-            _random = randomSeed == -1 ? new Random() : new Random(randomSeed);
             _tileWidth = tileWidth;
             _tileHeight = tileHeight;
             _dispersionBound = dispersionBound;
-            //_pool = new RandomPoolGenerator(original.Width, original.Height, randomSeed);
 
             GenerateTiles(_tileWidth, _tileHeight);
             ClearTilesAvaliables();

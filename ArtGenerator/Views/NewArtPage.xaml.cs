@@ -31,7 +31,8 @@ namespace ArtGenerator.Views
 
         private string _inputPath;
 
-        private Bitmap? _selectedImage = null;
+        private int _width;
+        private int _height;
 
         private ArtUserInput? _artUserInput = null;
 
@@ -82,7 +83,7 @@ namespace ArtGenerator.Views
 
         private string ResaveJson()
         {
-            ArtModelSerializer artModel = new ArtModelSerializer(ReadArtUserInput());
+            ArtModelSerializer artModel = new ArtModelSerializer(ReadArtUserInput(), _width, _height);
             string jsonData = JsonConvert.SerializeObject(artModel, Formatting.Indented);
             File.WriteAllText(_jsonDataFilePath, jsonData);
             return jsonData;
@@ -184,6 +185,8 @@ namespace ArtGenerator.Views
             {
                 string serializedJson = ResaveJson();
                 ArtModelSerializer artModel = JsonConvert.DeserializeObject<ArtModelSerializer>(serializedJson)!;
+                artModel.Width = _width;
+                artModel.Height = _height;
                 MainWindow mainWindow = (Application.Current.MainWindow as MainWindow)!;
 
                 using (MemoryStream outStream = new MemoryStream())
@@ -220,8 +223,11 @@ namespace ArtGenerator.Views
                 _bitmapImage = logo;
                 targe_image.Source = logo;
 
+                _width = (int)logo.Width;
+                _height = (int)logo.Height;
+
                 // Сохранение json-а в файл
-                ArtModelSerializer artModel = new ArtModelSerializer(ArtUserInput.Default);
+                ArtModelSerializer artModel = new ArtModelSerializer(ArtUserInput.Default, _width, _height);
                 var jsonData = JsonConvert.SerializeObject(artModel, Formatting.Indented);
                 _jsonDataFilePath = Path.Combine(_currentDataFolderPath, $"{Title}.json");
 

@@ -20,22 +20,21 @@
 
         <TextBox x:Name="inputPath" 
       HorizontalAlignment="Left" 
-      Margin="39,40,0,0" 
+      Margin="10,10,0,0" 
       TextWrapping="Wrap" 
-      Text="C:\Users\skura\source\repos\ArtGenerator\Input" 
+      Text="C:\Users\skura\source\repos\ArtGenerator\Input\" 
       VerticalAlignment="Top" 
-      Width="640" 
+      Width="807" 
       Height="43" 
-      FontSize="22" Grid.Row="1"/>
+      FontSize="22"/>
 
         <TextBox x:Name="outputPath" 
       HorizontalAlignment="Left" 
-      Margin="39,119,0,0" 
-      Grid.Row="1" 
+      Margin="10,58,0,0" 
       TextWrapping="Wrap" 
       Text="C:\Users\skura\source\repos\ArtGenerator\Output\" 
       VerticalAlignment="Top" 
-      Width="640" 
+      Width="807" 
       Height="42" 
       FontSize="22"/>
 
@@ -45,8 +44,44 @@
 
 
         <Frame x:Name="mainFrame" Grid.Row="0" Grid.Column="1" Width="624" Height="860" Foreground="#FFFFFBFB" Background="White" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,40,32,0" />
-        <StackPanel x:Name="status_stack" Margin="10,721,50,0" Width="900" Background="#FFAFAFAF"/>
-        <Image x:Name="result_img" HorizontalAlignment="Left" Height="436" Margin="214,212,0,0" VerticalAlignment="Top" Width="430" OpacityMask="#FFCECECE"/>
+        
+        <StackPanel x:Name="status_stack" Margin="10,721,143,0" Background="#FFAFAFAF"/>
+        
+        <TextBox x:Name="libraryPath" 
+            HorizontalAlignment="Left" 
+            Margin="10,105,0,0" 
+            TextWrapping="Wrap" 
+            Text="C:\Users\skura\source\repos\ArtGenerator\ArtModel\StrokeLib\SourceLib" 
+            VerticalAlignment="Top" 
+            Width="807" 
+            Height="42" 
+            FontSize="22"/>
+        <Label Content="Исходники" HorizontalAlignment="Left" Height="35" Margin="822,18,0,0" VerticalAlignment="Top" Width="114" FontSize="20"/>
+        <Label Content="Вывод" HorizontalAlignment="Left" Height="35" Margin="822,65,0,0" VerticalAlignment="Top" Width="114" FontSize="20"/>
+        <Label Content="Библиотека" HorizontalAlignment="Left" Height="35" Margin="822,112,0,0" VerticalAlignment="Top" Width="120" FontSize="20"/>
+        <Border BorderBrush="Black" BorderThickness="4" Margin="10,176,143,361">
+            <Image x:Name="bitmap_image"/>
+        </Border>
+        <CheckBox x:Name="checkbox_show_progress" Content="Отображать прогресс" HorizontalAlignment="Left" Margin="838,176,0,0" VerticalAlignment="Top" Height="18" Width="149" IsChecked="True" UseLayoutRounding="False" FontStretch="Normal" FontSize="11" Grid.ColumnSpan="2">
+            <CheckBox.LayoutTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="2" ScaleY="2" />
+                    <SkewTransform/>
+                    <RotateTransform/>
+                    <TranslateTransform X="-1.4"/>
+                </TransformGroup>
+            </CheckBox.LayoutTransform>
+        </CheckBox>
+        <CheckBox x:Name="checkbox_save_to_folder" Content="Сохранять в папку" HorizontalAlignment="Left" Margin="838,226,0,0" VerticalAlignment="Top" Height="18" Width="149" IsChecked="True" UseLayoutRounding="False" FontStretch="Normal" FontSize="11" Grid.ColumnSpan="2">
+            <CheckBox.LayoutTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="2" ScaleY="2" />
+                    <SkewTransform/>
+                    <RotateTransform/>
+                    <TranslateTransform X="-1.4"/>
+                </TransformGroup>
+            </CheckBox.LayoutTransform>
+        </CheckBox>
 
     </Grid>
 

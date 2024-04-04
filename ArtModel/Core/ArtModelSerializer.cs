@@ -7,6 +7,7 @@ namespace ArtModel.Core
     {
         Linear,
         // TODO: Добавить новые пресеты генерации
+        // Лень
     }
 
     [Serializable()]
@@ -14,14 +15,22 @@ namespace ArtModel.Core
     {
         public ArtUserInput UserInput { get; set; }
 
+        [JsonIgnore]
+        public int Width { get; set; }
+
+        [JsonIgnore]
+        public int Height { get; set; }
+
         public List<ArtGeneration> Generations { get; set; }
 
         public ArtModelSerializer()
         {
         }
 
-        public ArtModelSerializer(ArtUserInput inputData)
+        public ArtModelSerializer(ArtUserInput inputData, int width, int height)
         {
+            Width = width;
+            Height = height;
             UserInput = inputData;
             Generations = new List<ArtGeneration>();
             int generationsNumber = inputData.Generations;
@@ -42,33 +51,33 @@ namespace ArtModel.Core
             // Генерация слоёв
             for (int gen = 0; gen < generationsNumber; gen++)
             {
-                ArtGeneration artGeneration = new ArtGeneration();
+                ArtGeneration aGen = new ArtGeneration();
                 double factor_down = borders_pairs[gen];
                 double factor_up = borders_pairs[gen + 1];
                 double factor_norm = borders_normal[gen];
 
                 // Ширина кисти
                 int stroke_width_interval = inputData.StrokeWidth_Max - inputData.StrokeWidth_Min;
-                artGeneration.StrokeWidth_Min = (int)(inputData.StrokeWidth_Min + stroke_width_interval * factor_down);
-                artGeneration.StrokeWidth_Max = (int)(inputData.StrokeWidth_Min + stroke_width_interval * factor_up);
+                aGen.StrokeWidth_Min = (int)(inputData.StrokeWidth_Min + stroke_width_interval * factor_down);
+                aGen.StrokeWidth_Max = (int)(inputData.StrokeWidth_Min + stroke_width_interval * factor_up);
 
                 // Длина мазка
-                artGeneration.StrokeLength_Min = inputData.StrokeLength_Min;
-                artGeneration.StrokeLength_Max = inputData.StrokeLength_Max;
+                aGen.StrokeLength_Min = inputData.StrokeLength_Min;
+                aGen.StrokeLength_Max = inputData.StrokeLength_Max;
 
                 // Блюр
                 int blur_interval = inputData.BlurSigma_Max - inputData.BlurSigma_Min;
-                artGeneration.BlurSigma = (int)(inputData.BlurSigma_Min + blur_interval * factor_norm);
+                aGen.BlurSigma = (int)(inputData.BlurSigma_Min + blur_interval * factor_norm);
 
                 // Дисперсия
                 int dispersion_interval = inputData.Dispersion_Max - inputData.Dispersion_Min;
-                artGeneration.DispersionBound = (int)(inputData.Dispersion_Min + dispersion_interval * factor_norm);
+                aGen.DispersionBound = (int)(inputData.Dispersion_Min + dispersion_interval * factor_norm);
 
                 // Итерации
-                int iterations = (int)((1000 * 1000) / (Math.Pow(artGeneration.StrokeWidth_Max / 2, 2.5)));
-                artGeneration.Iterations = iterations;
+                int iterations = (int)((width * height) / (aGen.StrokeWidth_Max * aGen.StrokeWidth_Max));
+                aGen.Iterations = iterations;
 
-                Generations.Add(artGeneration);
+                Generations.Add(aGen);
             }
 
             Generations.Reverse();
