@@ -18,10 +18,10 @@ namespace ArtModel.Tracing
 
         public Color MeanColor { get; set; }
 
+        public double Dispersion { get; set; }
+
         public HashSet<(int x, int y)> Coordinates { get; set; }
 
         public double MainAbsAngle { get; set; }
-
-        public int Status { get; set; }
     }
 }

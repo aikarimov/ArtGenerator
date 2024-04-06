@@ -2,6 +2,7 @@
 using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.ImageProccessing;
 using ArtModel.MathLib;
+using ArtModel.Statistics;
 using ArtModel.StrokeLib;
 using ArtModel.Tracing.PathTracing;
 using ArtModel.Tracing.PointDeciding;
@@ -34,9 +35,9 @@ namespace ArtModel.Tracing
 
         private ArtModelSerializer _artModelSerializer;
 
-        private int Genetaions => _artModelSerializer.UserInput.Generations;
+        private int _segments = 0;
 
-        private const double FirstLayerFill = 0.001;
+        private int Genetaions => _artModelSerializer.UserInput.Generations;
 
         private CancellationToken _token;
 
@@ -46,12 +47,15 @@ namespace ArtModel.Tracing
         public delegate void StatusHandler(string status);
         public event StatusHandler NotifyStatusChange;
 
+        private CanvasShapeGenerator _canvasShapeGenerator;
+
         public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, PathSettings pathSettings, CancellationToken cancellationToken)
         {
             _artModelSerializer = serealizer;
             _pathSettings = pathSettings;
             originalModel = originalCanvas;
             _token = cancellationToken;
+            _segments = serealizer.UserInput.Segments;
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -68,7 +72,7 @@ namespace ArtModel.Tracing
             ArtBitmap artificialModel = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
             ArtBitmap shapesBm = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
             ArtBitmap frameBm = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
-
+            _canvasShapeGenerator = new CanvasShapeGenerator(originalModel);
 
             // Класс для выборки точек (инициализация)
             IPointDecider decider = new RandomPointDecider();
@@ -84,6 +88,7 @@ namespace ArtModel.Tracing
                 double[,] blurredBrightnessMap = GaussianBlur.ApplyBlurToBrightnessMap(BrightnessMap.GetBrightnessMap(blurredOriginalMap), localData.BlurSigma);
                 (int x, int y) coordinates;
 
+                if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.SetGenerationContext(gen, localData); }
                 NotifyStatusChange?.Invoke($"{TracingState.Tracing} | Поколение: {gen}");
 
                 switch (gen)
@@ -93,10 +98,10 @@ namespace ArtModel.Tracing
                         decider = new RandomPointDecider(originalModel, 1);
                         while (decider.DeciderAvaliable())
                         {
-                            if (CheckToken()) 
+                            if (CheckToken())
                             {
                                 NotifyStatusChange?.Invoke($"{TracingState.Cancelled} | Поколение: {gen}");
-                                yield break; 
+                                yield break;
                             }
 
                             MakeStroke();
@@ -112,20 +117,19 @@ namespace ArtModel.Tracing
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
-                            if (CheckToken()) 
+                            if (CheckToken())
                             {
                                 NotifyStatusChange?.Invoke($"{TracingState.Cancelled} | Поколение: {gen}");
-                                yield break; 
+                                yield break;
                             }
 
                             try
                             {
                                 MakeStroke();
-
                             }
                             catch (Exception)
                             {
-                                yield break;
+                                break;
                             }
 
                             decider.PostStroke();
@@ -141,6 +145,7 @@ namespace ArtModel.Tracing
                     coordinates = decider.GetNewPoint();
 
                     TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap);
+                    if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(tracingResult); }
 
                     Stroke classified = strokeLibrary.ClassifyStroke(tracingResult, localData);
 
@@ -285,14 +290,13 @@ namespace ArtModel.Tracing
                             cancel_stroke_path = false;
 
                             segmentedLength += tpath.Length;
-
+                            tracingResult.Dispersion = tpath.Dispersion;
                             tracingResult.SP.SetP(StrokeProperty.Length, segmentedLength);
                             tracingResult.SP.SetP(StrokeProperty.LtoW, segmentedLength / roi.Width);
                             tracingResult.SP.SetP(StrokeProperty.Fraction, (segmentedLength - tpath.Length) * 100 / segmentedLength);
 
                             segmentedCalculator = tpath.Calculator;
                             segmentedPathCoordinates.UnionWith(tpath.Coordinates);
-
 
                             tracingResult.SP.SetP(StrokeProperty.Points, segmentPoint);
                             pathPoints.Add(segmentPoint, tpath.EndPoint);
@@ -363,6 +367,7 @@ namespace ArtModel.Tracing
             globalPoint = PointOffset(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2);
 
             Color color = tracingResult.MeanColor;
+            _canvasShapeGenerator.OpenNewStroke(color);
 
             for (int x = 0; x < stroke.Width; x++)
             {
@@ -376,6 +381,7 @@ namespace ArtModel.Tracing
                     {
                         artificialRender[globalX, globalY] = CalculateAlpha(artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
                         decider?.PointCallback((globalX, globalY));
+                        //_canvasShapeGenerator.AddPixel((globalX, globalY));
                     }
                 }
             }

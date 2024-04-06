@@ -78,6 +78,16 @@
             </CheckBox.LayoutTransform>
         </CheckBox>
         <Button x:Name="button_cancel_generation" Content="Завершить" HorizontalAlignment="Right" VerticalAlignment="Bottom" Height="68" Width="281" FontSize="48" Background="White" Margin="0,0,10,10" Click="button_cancel_generation_click"/>
+        <CheckBox x:Name="checkbox_collect_data" Content="Собирать статистику" HorizontalAlignment="Left" Margin="838,279,0,0" VerticalAlignment="Top" Height="18" Width="149" IsChecked="False" UseLayoutRounding="False" FontStretch="Normal" FontSize="11">
+            <CheckBox.LayoutTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="2" ScaleY="2" />
+                    <SkewTransform/>
+                    <RotateTransform/>
+                    <TranslateTransform X="-1.4"/>
+                </TransformGroup>
+            </CheckBox.LayoutTransform>
+        </CheckBox>
 
     </Grid>
 

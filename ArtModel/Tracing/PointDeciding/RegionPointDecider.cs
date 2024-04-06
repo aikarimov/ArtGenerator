@@ -1,4 +1,5 @@
 ﻿using ArtModel.ImageProccessing;
+using ArtModel.Statistics;
 using System.Drawing;
 
 namespace ArtModel.Tracing.PointDeciding
@@ -36,6 +37,8 @@ namespace ArtModel.Tracing.PointDeciding
                     }
                 }
             }
+
+            if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddTileDispersion(Dispersion, _wh.w, _wh.h); }
         }
 
         public bool IfInside((int x, int y) p)

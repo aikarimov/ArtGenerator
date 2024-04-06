@@ -21,8 +21,8 @@ namespace ArtModel.Tracing.PathTracing.Shapes
 
             if (p1.x == p2.x || p1.y == p2.y)
             {
-                // RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
-                //RectangleShapeConstraintsCalculator.CalculateHorizontalConstraints(p2, p4, _constraints);
+                RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
+                RectangleShapeConstraintsCalculator.CalculateHorizontalConstraints(p1, p3, _constraints);
                 return;
             }
 

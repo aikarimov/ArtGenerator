@@ -114,7 +114,7 @@ namespace ArtModel.Core
             StrokeWidth_Min = 8,
             StrokeWidth_Max = 80,
 
-            StrokeLength_Min = 1,
+            StrokeLength_Min = 2,
             StrokeLength_Max = 60,
 
             BlurSigma_Min = 8,
