@@ -54,15 +54,6 @@ namespace ArtModel.Tracing.PointDeciding
         }
     }
 
-    public class OrderedTilesList : List<(int x, int y)>
-    {
-        public OrderedTilesList()
-        {
-
-        }
-
-    }
-
     public class RegionPointDecider : IPointDecider
     {
         private ArtBitmap _original;
@@ -71,15 +62,17 @@ namespace ArtModel.Tracing.PointDeciding
 
         private Tile[,] _tiles;
 
-        private List<(int x, int y)> _avaliableTiles;
-
+        private bool[,] _avaliableTiles;
         private List<(int x, int y)> _orderedTileIndex;
 
         private int _tileWidth;
-
         private int _tileHeight;
 
         private double _dispersionBound;
+
+        private HashSet<(int x, int y)> _tilesToRecalculate;
+
+        private (int w, int h) _tilesCount;
 
         public RegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound)
         {
@@ -88,19 +81,17 @@ namespace ArtModel.Tracing.PointDeciding
             _tileWidth = tileWidth;
             _tileHeight = tileHeight;
             _dispersionBound = dispersionBound;
+            _tilesToRecalculate = new();
 
             GenerateTiles(_tileWidth, _tileHeight);
-            ClearTilesAvaliables();
-            RecalculateList();
         }
 
         private void GenerateTiles(int tileWidth, int tileHeight)
         {
-            // Предрасчёт размеров массива тайлов
+            // Разбитие поля на клетки
             int sizeX = (int)Math.Ceiling((double)_original.Width / tileWidth);
             int sizeY = (int)Math.Ceiling((double)_original.Height / tileHeight);
             _tiles = new Tile[sizeY, sizeX];
-
             int counterX = 0;
             for (int x = 0; x < _original.Width; x += tileWidth)
             {
@@ -115,59 +106,53 @@ namespace ArtModel.Tracing.PointDeciding
                 }
                 counterX++;
             }
-        }
+            _tilesCount = (_tiles.GetLength(1), _tiles.GetLength(0));
 
-        private void ClearTilesAvaliables()
-        {
-            int height = _tiles.GetLength(0);
-            int width = _tiles.GetLength(1);
-            _avaliableTiles = new();
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    _avaliableTiles.Add((x, y));
-                }
-            }
-        }
-
-        // Переписать
-        private void RecalculateList()
-        {
+            // Создание упорядоченного списка полей по дисперсии
             _orderedTileIndex = new();
-
-            for (int y = 0; y < _tiles.GetLength(0); y++)
+            for (int y = 0; y < _tilesCount.h; y++)
             {
-                for (int x = 0; x < _tiles.GetLength(1); x++)
+                for (int x = 0; x < _tilesCount.w; x++)
                 {
                     _orderedTileIndex.Add((x, y));
                 }
             }
+            SortOrderedList();
 
-            _orderedTileIndex.Sort((s1, s2) => _tiles[s2.y, s2.x].Dispersion.CompareTo(_tiles[s1.y, s1.x].Dispersion));
-        }
-
-        private Tile GetMaxDispersionTile()
-        {
-            for (int i = 0; i < _orderedTileIndex.Count; i++)
+            // Создание списка доступных полей
+            _avaliableTiles = new bool[sizeY, sizeX];
+            for (int y = 0; y < _tilesCount.h; y++)
             {
-                var index = _orderedTileIndex[i];
-                var tile = _tiles[index.y, index.x];
-
-                if (_avaliableTiles.Contains(index) && tile.Dispersion >= _dispersionBound)
+                for (int x = 0; x < _tilesCount.w; x++)
                 {
-                    _avaliableTiles.Remove((index.x, index.y));
-                    return _tiles[index.y, index.x];
+                    _avaliableTiles[y, x] = true;
                 }
             }
+        }
 
-            throw new Exception();
+        private void SortOrderedList()
+        {
+            _orderedTileIndex.Sort((s1, s2) => _tiles[s2.y, s2.x].Dispersion.CompareTo(_tiles[s1.y, s1.x].Dispersion));
         }
 
         public (int x, int y) GetNewPoint()
         {
-            return GetMaxDispersionTile().MaxDispersionPoint;
+            for (int i = 0; i < _orderedTileIndex.Count; i++)
+            {
+                var index = _orderedTileIndex[i];
+                Tile tile = _tiles[index.y, index.x];
+
+                // Увеличить границу дисперсии. По квадратам она явно больше, чем для мазков
+                if (_avaliableTiles[index.y, index.x] && tile.Dispersion >= _dispersionBound)
+                {
+                    _avaliableTiles[index.y, index.x] = false;
+                    _orderedTileIndex.Remove(index);
+
+                    return _tiles[index.y, index.x].MaxDispersionPoint;
+                }
+            }
+
+            throw new Exception();
         }
 
         public bool DeciderAvaliable()
@@ -177,13 +162,27 @@ namespace ArtModel.Tracing.PointDeciding
 
         public void PointCallback((int x, int y) point)
         {
+            double fractionX = (double)point.x / (_tilesCount.w * _tileWidth);
+            double fractionY = (double)point.y / (_tilesCount.h * _tileHeight);
 
+            int x_new = (int)(Math.Floor(fractionX * (_tilesCount.w)));
+            int y_new = (int)(Math.Floor(fractionY * (_tilesCount.h)));
+
+            _tilesToRecalculate.Add((x_new, y_new));
         }
 
         public void PostStroke()
         {
-            GenerateTiles(_tileWidth, _tileHeight);
-            RecalculateList();
+            foreach (var t in _tilesToRecalculate)
+            {
+                if (_avaliableTiles[t.y, t.x])
+                {
+                    var tile = _tiles[t.y, t.x];
+                    tile.CalculateDisperion(_original, _artificial);
+                    SortOrderedList();
+                }
+            }
+            _tilesToRecalculate = new();
         }
     }
 }
