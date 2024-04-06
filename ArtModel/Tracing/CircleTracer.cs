@@ -29,7 +29,7 @@ namespace ArtModel.Tracing
             int y = point.y;
             int r_min = genData.StrokeWidth_Min / 2;
             int r_max = genData.StrokeWidth_Max / 2;
-            double dispersion = genData.DispersionBound;
+            double dispersion = genData.DispersionStrokeBound;
 
             int r_interval = r_max - r_min + 1;
             Task[] tasks = new Task[r_interval];

@@ -1,16 +1,13 @@
 ﻿using ArtModel.Core;
 using Microsoft.Win32;
+using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
-using Newtonsoft.Json;
-using System.Diagnostics;
-using System.Windows.Media;
-using System.Windows.Navigation;
 
 namespace ArtGenerator.Views
 {
@@ -22,8 +19,6 @@ namespace ArtGenerator.Views
         private const string StylesFolder = "Styles";
         private const string CurrentDataFolder = "CurrentData";
 
-        private string _executableLocation;
-
         private string _stylesFolderPath;
         private string _currentDataFolderPath;
 
@@ -34,22 +29,62 @@ namespace ArtGenerator.Views
         private int _width;
         private int _height;
 
-        private ArtUserInput? _artUserInput = null;
-
         private FileSystemWatcher watcher;
 
-        private bool _loaded = false;
-
         private BitmapImage _bitmapImage;
+
+        public event Action NotifyImageLoaded;
+        public event Action NotifyImageProccessed;
+        public event Action NotifyFisrtLoad;
 
         public NewArtPage(string inputPath)
         {
             InitializeComponent();
             EnsureFoldersExists();
             InitWatcher();
+            SubscribeEvents();
+            Reload();
 
             this.Title = inputPath;
             _inputPath = inputPath;
+        }
+
+        private void SubscribeEvents()
+        {
+            NotifyImageLoaded += () =>
+            {
+                button_open_json.IsEnabled = true;
+                button_confirm.IsEnabled = true;
+                button_confirm.IsEnabled = true;
+                button_pick_style.IsEnabled = true;
+                button_save_style.IsEnabled = true;
+                button_load.IsEnabled = true;
+            };
+
+            NotifyImageProccessed = () =>
+            {
+                button_confirm.IsEnabled = false;
+                button_confirm.IsEnabled = false;
+                button_pick_style.IsEnabled = false;
+                button_save_style.IsEnabled = false;
+                button_load.IsEnabled = false;
+            };
+
+            NotifyFisrtLoad = () =>
+            {
+                button_load.IsEnabled = true;
+
+                button_confirm.IsEnabled = false;
+                button_confirm.IsEnabled = false;
+                button_pick_style.IsEnabled = false;
+                button_save_style.IsEnabled = false;              
+                button_open_json.IsEnabled = false;
+            };
+        }
+
+        public void Reload()
+        {
+            NotifyFisrtLoad?.Invoke();
         }
 
         private void InitWatcher()
@@ -65,10 +100,10 @@ namespace ArtGenerator.Views
 
         private void EnsureFoldersExists()
         {
-            _executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+            var executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
 
-            _stylesFolderPath = Path.Combine(_executableLocation, StylesFolder);
-            _currentDataFolderPath = Path.Combine(_executableLocation, CurrentDataFolder);
+            _stylesFolderPath = Path.Combine(executableLocation, StylesFolder);
+            _currentDataFolderPath = Path.Combine(executableLocation, CurrentDataFolder);
 
             if (!Directory.Exists(_stylesFolderPath))
             {
@@ -92,7 +127,6 @@ namespace ArtGenerator.Views
         // Открыть json для редактирования
         private void button_open_json_Click(object sender, RoutedEventArgs e)
         {
-            if (!_loaded) return;
             ResaveJson();
 
             Process.Start("notepad.exe", _jsonDataFilePath);
@@ -122,8 +156,6 @@ namespace ArtGenerator.Views
         // Выбрать стиль
         private void button_pick_style_Click(object sender, RoutedEventArgs e)
         {
-            if (!_loaded) return;
-
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "JSON Files (*.json)|*.json";
             openFileDialog.InitialDirectory = _stylesFolderPath;
@@ -149,8 +181,6 @@ namespace ArtGenerator.Views
         // Сохранить стиль
         private void button_save_style_Click(object sender, RoutedEventArgs e)
         {
-            if (!_loaded) return;
-
             // Пересохранение текущих настроек с экрана
             var jsonData = ResaveJson();
 
@@ -177,8 +207,6 @@ namespace ArtGenerator.Views
         // Подтвердить
         private void button_confirm_Click(object sender, RoutedEventArgs e)
         {
-            if (!_loaded) return;
-
             watcher.Dispose();
 
             try
@@ -196,6 +224,7 @@ namespace ArtGenerator.Views
                     enc.Save(outStream);
                     Bitmap bitmap = new Bitmap(outStream);
 
+                    NotifyImageProccessed?.Invoke();
                     mainWindow.ReceiveData(artModel, bitmap);
                 }
             }
@@ -234,7 +263,7 @@ namespace ArtGenerator.Views
                 try
                 {
                     File.WriteAllText(_jsonDataFilePath, jsonData);
-                    _loaded = true;
+                    NotifyImageLoaded?.Invoke();
                 }
                 catch (Exception ex)
                 {
@@ -260,8 +289,11 @@ namespace ArtGenerator.Views
                 BlurSigma_Min = Convert.ToInt32(input_blur_min.Text),
                 BlurSigma_Max = Convert.ToInt32(input_blur_max.Text),
 
-                Dispersion_Min = Convert.ToInt32(input_dispersion_min.Text),
-                Dispersion_Max = Convert.ToInt32(input_dispersion_max.Text)
+                Dispersion_Stroke_Min = Convert.ToInt32(input_dispersion_min.Text),
+                Dispersion_Stroke_Max = Convert.ToInt32(input_dispersion_max.Text),
+
+                Dispersion_Tile_Min = Convert.ToInt32(input_tile_dipserion_min.Text),
+                Dispersion_Tile_Max = Convert.ToInt32(input_tile_dipserion_max.Text)
             };
         }
 
@@ -280,16 +312,12 @@ namespace ArtGenerator.Views
             input_blur_min.Text = input.BlurSigma_Min.ToString();
             input_blur_max.Text = input.BlurSigma_Max.ToString();
 
-            input_dispersion_min.Text = input.Dispersion_Min.ToString();
-            input_dispersion_max.Text = input.Dispersion_Max.ToString();
+            input_dispersion_min.Text = input.Dispersion_Stroke_Min.ToString();
+            input_dispersion_max.Text = input.Dispersion_Stroke_Max.ToString();
+
+            input_tile_dipserion_min.Text = input.Dispersion_Tile_Min.ToString();
+            input_tile_dipserion_max.Text = input.Dispersion_Tile_Max.ToString();
         }
 
-        private void button_cancel_Click(object sender, RoutedEventArgs e)
-        {
-
-            MainWindow mainWindow = (Application.Current.MainWindow as MainWindow)!;
-            mainWindow.ClearFrame();
-
-        }
     }
 }

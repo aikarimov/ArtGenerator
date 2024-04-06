@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ArtModel.Core
 {
@@ -10,7 +9,6 @@ namespace ArtModel.Core
         // Лень
     }
 
-    [Serializable()]
     public class ArtModelSerializer
     {
         public ArtUserInput UserInput { get; set; }
@@ -70,10 +68,14 @@ namespace ArtModel.Core
                 aGen.BlurSigma = (int)(inputData.BlurSigma_Min + blur_interval * factor_norm);
 
                 // Дисперсия
-                int dispersion_interval = inputData.Dispersion_Max - inputData.Dispersion_Min;
-                aGen.DispersionBound = (int)(inputData.Dispersion_Min + dispersion_interval * factor_norm);
+                int dispersion_stroke_interval = inputData.Dispersion_Stroke_Max - inputData.Dispersion_Stroke_Min;
+                aGen.DispersionStrokeBound = (int)(inputData.Dispersion_Stroke_Min + dispersion_stroke_interval * factor_norm);
+
+                int dispersion_tile_interval = inputData.Dispersion_Tile_Max - inputData.Dispersion_Tile_Min;
+                aGen.DispersionTileBound = (int)(inputData.Dispersion_Tile_Min + dispersion_tile_interval * factor_norm);
 
                 // Итерации
+                // Можно смело изменять формулу
                 int iterations = (int)((width * height) / (aGen.StrokeWidth_Max * aGen.StrokeWidth_Max));
                 aGen.Iterations = iterations;
 
@@ -85,7 +87,6 @@ namespace ArtModel.Core
     }
 
     // Данные о конкретном уровне
-    [Serializable()]
     public class ArtGeneration
     {
         public int Iterations { get; set; }
@@ -97,7 +98,8 @@ namespace ArtModel.Core
         public int StrokeLength_Max { get; set; }
 
         public int BlurSigma { get; set; }
-        public int DispersionBound { get; set; }
+        public int DispersionStrokeBound { get; set; }
+        public int DispersionTileBound { get; set; }
     }
 
     // Пользовательский ввод
@@ -118,8 +120,11 @@ namespace ArtModel.Core
             BlurSigma_Min = 8,
             BlurSigma_Max = 40,
 
-            Dispersion_Min = 100,
-            Dispersion_Max = 700,
+            Dispersion_Stroke_Min = 100,
+            Dispersion_Stroke_Max = 700,
+
+            Dispersion_Tile_Min = 5000,
+            Dispersion_Tile_Max = 20000,
 
             Curve = GenerationCurve.Linear,
         };
@@ -143,8 +148,12 @@ namespace ArtModel.Core
         public int BlurSigma_Max { get; init; }
 
         // Диапазон дисперсий для генерации
-        public int Dispersion_Min { get; set; }
-        public int Dispersion_Max { get; set; }
+        public int Dispersion_Stroke_Min { get; set; }
+        public int Dispersion_Stroke_Max { get; set; }
+
+        // Диапазон дисперсий для регионов
+        public int Dispersion_Tile_Min { get; set; }
+        public int Dispersion_Tile_Max { get; set; }
 
         // Способ разбиения на конкретные уровни
         public GenerationCurve Curve { get; set; }

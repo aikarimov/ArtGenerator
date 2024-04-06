@@ -142,7 +142,6 @@ namespace ArtModel.Tracing.PointDeciding
                 var index = _orderedTileIndex[i];
                 Tile tile = _tiles[index.y, index.x];
 
-                // Увеличить границу дисперсии. По квадратам она явно больше, чем для мазков
                 if (_avaliableTiles[index.y, index.x] && tile.Dispersion >= _dispersionBound)
                 {
                     _avaliableTiles[index.y, index.x] = false;

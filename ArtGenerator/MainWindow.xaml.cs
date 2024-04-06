@@ -1,8 +1,10 @@
 ﻿using ArtGenerator.Views;
 using ArtModel.Core;
-using Microsoft.Win32;
+using Newtonsoft.Json;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -15,36 +17,91 @@ namespace ArtGenerator
     /// </summary>
     public partial class MainWindow : Window
     {
+        private CancellationTokenSource _tokenSource;
+
+        public event Action NotifyCancelled;
+        public event Action NotifyStart;
+
+        private string SettingsFolder = "Settings";
+        private string ImagesSubFolder = "Images";
+        private string StatisticsSubFolder = "Statistics";
+        private string ShapesSubFolder = "Shapes";
 
         public MainWindow()
         {
             InitializeComponent();
+            OpenNewArtPage();
+            SubscribeEvents();
+            Reload();
+            EnsureFoldersExists();
+            LoadSettings();
+        }
+
+        private void EnsureFoldersExists()
+        {
+            var outputFolder = outputPath.Text;
+            var executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+
+            string[] folders = [
+                Path.Combine(outputFolder, ImagesSubFolder),
+                Path.Combine(outputFolder, StatisticsSubFolder),
+                Path.Combine(outputFolder, ShapesSubFolder),
+                Path.Combine(executableLocation, SettingsFolder)];
+
+            foreach (var f in folders)
+            {
+                if (!Directory.Exists(f))
+                {
+                    Directory.CreateDirectory(f);
+                }
+            }
         }
 
         public void ClearFrame()
         {
-            //mainFrame.Content = null;
+            NewArtPage newPage = new NewArtPage(inputPath.Text);
+            mainFrame.Navigate(newPage);
             mainFrame.NavigationService.RemoveBackEntry();
-
-
-            mainFrame.NavigationService.Refresh();
         }
 
-        private void OpenNewArtPage(object sender, RoutedEventArgs e)
+        private void OpenNewArtPage()
         {
             NewArtPage newPage = new NewArtPage(inputPath.Text);
             mainFrame.Navigate(newPage);
+
+            NotifyCancelled += () =>
+            {
+                newPage.Reload();
+                button_cancel_generation.IsEnabled = false;
+            };
         }
 
-        private void mainFrame_Navigated(object sender, System.Windows.Navigation.NavigationEventArgs e)
+        private void SubscribeEvents()
         {
+            NotifyStart += () =>
+            {
+                button_cancel_generation.IsEnabled = true;
+            };
 
+            NotifyCancelled += () =>
+            {
+                status_stack.Children.Clear();
+            };
 
+            inputPath.TextChanged += textChangedEventHandler;
+            outputPath.TextChanged += textChangedEventHandler;
+            libraryPath.TextChanged += textChangedEventHandler;
+        }
 
+        private void Reload()
+        {
+            button_cancel_generation.IsEnabled = false;
         }
 
         public void ReceiveData(ArtModelSerializer recievedSerializer, Bitmap bitmap)
         {
+            EnsureFoldersExists();
+
             var statusBar = new StatusBar();
             statusBar.Height = 40;
 
@@ -93,7 +150,8 @@ namespace ArtGenerator
 
             CoreArtModel coreArtModel = new CoreArtModel(bitmap, recievedSerializer, pathSettings);
 
-            CancellationToken token = new CancellationToken();
+            _tokenSource = new CancellationTokenSource();
+            var token = _tokenSource.Token;
             var tracer = coreArtModel.CreateTracer(token);
             tracer.NotifyStatusChange += (status) =>
             {
@@ -106,17 +164,12 @@ namespace ArtGenerator
             int generation = 0;
             tracer.NotifyGenerationsChange += (gen) => { generation = gen; };
 
+            NotifyStart?.Invoke();
+
             // Запуск генерации
             Task.Run(() =>
             {
-
-
-                /* if ((bool)checkbox_save_to_folder.IsChecked!)
-                 {
-                     bitmap.Save(pathSettings.OutputPath, "ArtOriginal");
-                 }*/
-
-
+                bitmap.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}\\ArtOriginal.{ImageFormat.Png}");
 
                 foreach (var art in tracer)
                 {
@@ -134,21 +187,21 @@ namespace ArtGenerator
                         // Сохранение текущего слоя в папку
                         if ((bool)checkbox_save_to_folder.IsChecked!)
                         {
-                            artificial_render.Save(pathSettings.OutputPath, $"Render_{generation}");
-                            model_render.Save(pathSettings.OutputPath, $"Model_{generation}");
+                            artificial_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Render_{generation}");
+                            model_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Model_{generation}");
                         }
 
                         progressBar.Value += 1;
                     });
                 }
-            });
+            }, token);
         }
 
         private BitmapImage BitmapToImageSource(Bitmap bitmap)
         {
             using (MemoryStream memory = new MemoryStream())
             {
-                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Bmp);
+                bitmap.Save(memory, ImageFormat.Bmp);
                 memory.Position = 0;
                 BitmapImage bitmapimage = new BitmapImage();
                 bitmapimage.BeginInit();
@@ -168,6 +221,53 @@ namespace ArtGenerator
                 total += serializer.Generations[i].Iterations;
             }
             return total;
+        }
+
+        // Досрочно завершить генерацию. В отличие от простого закрытия программы выполнит отрисовку карты скелетов, итд
+        private void button_cancel_generation_click(object sender, RoutedEventArgs e)
+        {
+            _tokenSource.Cancel();
+            NotifyCancelled?.Invoke();
+        }
+
+        // Сейв система настроек
+        private void LoadSettings()
+        {
+            var executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+            var path = Path.Combine(executableLocation, SettingsFolder, $"settings.json");
+            try
+            {
+                var settings = JsonConvert.DeserializeObject<PathSettings>(File.ReadAllText(path));
+                inputPath.Text = settings.InputPath;
+                outputPath.Text = settings.OutputPath;
+                libraryPath.Text = settings.LibraryPath;
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show("Ошибка при сохранении файла: " + ex.Message);
+            }
+        }
+
+        private void textChangedEventHandler(object sender, TextChangedEventArgs args)
+        {
+            try
+            {
+                var settings = new PathSettings()
+                {
+                    InputPath = inputPath.Text,
+                    OutputPath = outputPath.Text,
+                    LibraryPath = libraryPath.Text
+                };
+
+                var settingsJsonData = JsonConvert.SerializeObject(settings, Formatting.Indented);
+                var executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+                var path = Path.Combine(executableLocation, SettingsFolder, $"settings.json");
+                File.WriteAllText(path, settingsJsonData);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка при сохранении файла: " + ex.Message);
+            }
         }
     }
 }

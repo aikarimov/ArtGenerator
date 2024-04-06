@@ -16,6 +16,7 @@ namespace ArtModel.Tracing
         public static readonly TracingState Blurring = new TracingState() { Locale = "Блюр" };
         public static readonly TracingState Tracing = new TracingState() { Locale = "Отрисовка" };
         public static readonly TracingState Shapes = new TracingState() { Locale = "Создание формы/скелетов" };
+        public static readonly TracingState Cancelled = new TracingState() { Locale = "Отменено" };
 
         public string Locale { get; set; } = string.Empty;
 
@@ -61,7 +62,6 @@ namespace ArtModel.Tracing
         public IEnumerator<(ArtBitmap, ArtBitmap)> GetEnumerator()
         {
             NotifyStatusChange?.Invoke(TracingState.Prepare.Locale);
-            originalModel.Save(_pathSettings.OutputPath, "ArtOriginal");
             StrokeLibrary strokeLibrary = new StrokeLibrary(_pathSettings.LibraryPath, _artModelSerializer, 1);
 
             ArtBitmap artificialRender = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
@@ -93,7 +93,11 @@ namespace ArtModel.Tracing
                         decider = new RandomPointDecider(originalModel, 1);
                         while (decider.DeciderAvaliable())
                         {
-                            if (CheckToken()) { yield break; }
+                            if (CheckToken()) 
+                            {
+                                NotifyStatusChange?.Invoke($"{TracingState.Cancelled} | Поколение: {gen}");
+                                yield break; 
+                            }
 
                             MakeStroke();
                             decider.PostStroke();
@@ -104,11 +108,15 @@ namespace ArtModel.Tracing
                     // Отрисовка обычных слоёв
                     default:
                         (int w, int h) tileData = (localData.StrokeWidth_Max, localData.StrokeWidth_Max);
-                        decider = new RegionPointDecider(originalModel, artificialRender, tileData.w, tileData.h, localData.DispersionBound);
+                        decider = new RegionPointDecider(originalModel, artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
-                            if (CheckToken()) { yield break; }
+                            if (CheckToken()) 
+                            {
+                                NotifyStatusChange?.Invoke($"{TracingState.Cancelled} | Поколение: {gen}");
+                                yield break; 
+                            }
 
                             try
                             {
@@ -194,7 +202,7 @@ namespace ArtModel.Tracing
 
         private TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap)
         {
-            double tolerance = genData.DispersionBound;
+            double tolerance = genData.DispersionStrokeBound;
             int lenMin = genData.StrokeLength_Min;
             int lenMax = genData.StrokeLength_Max;
 
