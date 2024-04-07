@@ -4,6 +4,7 @@ using ArtModel.Statistics;
 using Newtonsoft.Json;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Drawing.Printing;
 using System.IO;
 using System.Reflection;
 using System.Windows;
@@ -229,7 +230,7 @@ namespace ArtGenerator
                         {
                             kvp.Value.Sort();
                             string json = JsonConvert.SerializeObject(kvp.Value, Formatting.Indented);
-                            File.WriteAllText(path, json);
+                            File.AppendAllText(path, json);
                         }
                     });
                 });
@@ -244,6 +245,12 @@ namespace ArtGenerator
                         string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                         File.WriteAllText(path, json);
                     });
+                });
+
+                Task.Run(() =>
+                {
+                    //artificial_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Render_{generation}");
+                    //model_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Model_{generation}");
                 });
             }
 

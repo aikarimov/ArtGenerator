@@ -181,9 +181,9 @@ namespace ArtModel.Tracing.PointDeciding
                 {
                     var tile = _tiles[t.y, t.x];
                     tile.CalculateDisperion(_original, _artificial);
-                    SortOrderedList();
                 }
             }
+            SortOrderedList();
             _tilesToRecalculate = new();
         }
     }
