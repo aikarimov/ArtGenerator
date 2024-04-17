@@ -2,7 +2,6 @@
 using ArtModel.Tracing;
 using System.Drawing;
 using System.Text.RegularExpressions;
-using OpenCvSharp;
 
 namespace ArtModel.StrokeLib
 {
@@ -52,6 +51,13 @@ namespace ArtModel.StrokeLib
         }
     }
 
+    public enum ResizeCoefficient
+    {
+        Width,
+        Length,
+        Middle,
+    }
+
     public class StrokeLibrary
     {
         private double mm_tp_px_coef = 8.6;
@@ -82,8 +88,8 @@ namespace ArtModel.StrokeLib
         {
             var input = serializer.UserInput;
 
-            normaliztor.AddP(StrokeProperty.Angle1, 0); // Углы меньше 10 будут считаться как 0
             normaliztor.AddP(StrokeProperty.Angle1, 90);
+            normaliztor.AddP(StrokeProperty.Angle1, 180);
 
             normaliztor.AddP(StrokeProperty.Fraction, 0); // Первый сегмент почти 0
             normaliztor.AddP(StrokeProperty.Fraction, 100); // Первый сегмент почти весь мазок
@@ -138,7 +144,7 @@ namespace ArtModel.StrokeLib
                .MinBy(sourceStroke =>
                {
                    double source_ltow = _normaliztor.Normalize(StrokeProperty.LtoW, sourceStroke.SP.GetP(StrokeProperty.LtoW));
-                   double source_angle = _normaliztor.Normalize(StrokeProperty.Angle1, Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Angle1)));
+                   double source_angle = _normaliztor.Normalize(StrokeProperty.Angle1, sourceStroke.SP.GetP(StrokeProperty.Angle1));
                    double source_fraction = _normaliztor.Normalize(StrokeProperty.Fraction, sourceStroke.SP.GetP(StrokeProperty.Fraction));
 
                    double df_ltow = Math.Abs(target_ltow - source_ltow);
@@ -157,22 +163,31 @@ namespace ArtModel.StrokeLib
 
             try
             {
-                if (a1 != double.NaN && a2 != double.NaN && (Math.Sign(a1) != Math.Sign(a2)))
+                if (/*a1 != double.NaN && a2 != double.NaN && */(Math.Sign(a1) != Math.Sign(a2)))
                 {
                     result.Flip(RotateFlipType.RotateNoneFlipX);
-                }              
+                }
             }
             catch { }
-            
+
             return result;
         }
 
-        public double CalculateResizeCoefficient(TracingResult tracingResult, Stroke strokeData)
+        public double CalculateResizeCoefficient(TracingResult tracingResult, Stroke strokeData, ResizeCoefficient resizeCoefficient = ResizeCoefficient.Width)
         {
-            double widthCoef = (tracingResult.SP.GetP(StrokeProperty.Width) / (strokeData.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef));
-            return widthCoef;
-
-            //double lenCoef = (tracingResult.SP.GetP(StrokeProperty.Width) / (strokeData.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef));
+            switch (resizeCoefficient)
+            {
+                case ResizeCoefficient.Width:
+                    return (tracingResult.SP.GetP(StrokeProperty.Width) / (strokeData.SP.GetP(StrokeProperty.Width) * mm_tp_px_coef));
+                case ResizeCoefficient.Length:
+                    return (tracingResult.SP.GetP(StrokeProperty.Length) / (strokeData.SP.GetP(StrokeProperty.Length) * mm_tp_px_coef));
+                case ResizeCoefficient.Middle:
+                    return (
+                        CalculateResizeCoefficient(tracingResult, strokeData, ResizeCoefficient.Width) +
+                        CalculateResizeCoefficient(tracingResult, strokeData, ResizeCoefficient.Length)) / 2;
+                default:
+                    return 1;
+            }
         }
     }
 
@@ -184,9 +199,11 @@ namespace ArtModel.StrokeLib
 
             Parallel.ForEach(Directory.GetFiles(rootPath, "*.*", SearchOption.AllDirectories), filePath =>
             {
+                // игонрируем карты нормалей и контуры
+                if (filePath.EndsWith("c") || filePath.EndsWith("n")) return;
+
                 using (FileStream fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
                 {
-
                     Bitmap inputBitmap = StrokeReader.ReadStrokeCropped((Bitmap)Image.FromStream(fileStream));
 
                     Stroke strokeData = new Stroke(inputBitmap);
@@ -203,16 +220,6 @@ namespace ArtModel.StrokeLib
 
                     // Добавление мазка в бибилиотеку
                     data[points].Add(strokeData);
-
-                    // Нормализация. Мазки с 1, 2 точками нет смысла считать, там не использутся норма
-
-                    /* if (points > 2)
-                     {
-                         foreach (var kvp in strokeData.SP)
-                         {
-                             data[points].Normalizator.AddP(kvp.Key, kvp.Value);
-                         }
-                     }*/
                 }
             });
         }
@@ -222,9 +229,14 @@ namespace ArtModel.StrokeLib
         {
             try
             {
+                // Расчёт LtoW
                 double length = collection.GetP(StrokeProperty.Length);
                 double width = collection.GetP(StrokeProperty.Width);
                 collection.SetP(StrokeProperty.LtoW, length / width);
+
+                // Пересчёт угла как угол между сегментами
+                double angle = collection.GetP(StrokeProperty.Angle1);
+                collection.SetP(StrokeProperty.Angle1, 180 - angle);
             }
             catch { }
         }

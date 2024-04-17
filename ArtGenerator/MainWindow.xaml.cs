@@ -1,6 +1,7 @@
 ﻿using ArtGenerator.Views;
 using ArtModel.Core;
 using ArtModel.Statistics;
+using ArtModel.Tracing;
 using Newtonsoft.Json;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -205,7 +206,7 @@ namespace ArtGenerator
                     });
                 }
 
-                ProccessPostArtData();
+                ProccessPostArtData(tracer);
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
@@ -214,47 +215,43 @@ namespace ArtGenerator
             });
         }
 
-        private void ProccessPostArtData()
+        private void ProccessPostArtData(Tracer tracer)
         {
-            // Обработка статистики
-            if (ArtStatistics.Instance.CollectStatistics)
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                // Дисперсия регионов
-                Task.Run(() =>
+                string outPath = outputPath.Text;
+
+                // Обработка статистики
+                if (ArtStatistics.Instance.CollectStatistics)
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    // Дисперсия регионов
+                    Task.Run(() =>
                     {
-                        var path = Path.Combine(outputPath.Text, StatisticsSubFolder, $"tiles-{DateTime.Now:dd-MM-HH-mm-ss}.txt");
-                        var data = ArtStatistics.Instance.TilesData;
-                        foreach (var kvp in data)
+                        var path = Path.Combine(outPath, StatisticsSubFolder, $"tiles-{DateTime.Now:dd-MM-HH-mm-ss}.txt");
+                        foreach (var kvp in ArtStatistics.Instance.TilesData)
                         {
                             kvp.Value.Sort();
                             string json = JsonConvert.SerializeObject(kvp.Value, Formatting.Indented);
                             File.AppendAllText(path, json);
                         }
                     });
-                });
 
-                // Мазки
-                Task.Run(() =>
-                {
-                    Application.Current.Dispatcher.Invoke(() =>
+                    // Мазки
+                    Task.Run(() =>
                     {
-                        var path = Path.Combine(outputPath.Text, StatisticsSubFolder, $"strokes-{DateTime.Now:dd-MM-HH-mm-ss}.txt");
-                        var data = ArtStatistics.Instance.StrokesData;
-                        string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+                        var path = Path.Combine(outPath, StatisticsSubFolder, $"strokes-{DateTime.Now:dd-MM-HH-mm-ss}.txt");
+                        string json = JsonConvert.SerializeObject(ArtStatistics.Instance.StrokesData, Formatting.Indented);
                         File.WriteAllText(path, json);
                     });
-                });
+                }
 
+                // Отрисовка скелетов/контуров
                 Task.Run(() =>
                 {
-                    //artificial_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Render_{generation}");
-                    //model_render.Save($"{pathSettings.OutputPath}\\{ImagesSubFolder}", $"Model_{generation}");
+                    var shapesBm = tracer.CanvasShapeGenerator.CreateShapesBitmap();
+                    shapesBm.Save($"{outPath}\\{ShapesSubFolder}", "Shapes");
                 });
-            }
-
-            // Отрисовка скелетов/контуров
+            }); 
         }
 
         private BitmapImage BitmapToImageSource(Bitmap bitmap)

@@ -27,7 +27,7 @@ namespace ArtModel.StrokeLib
         private static Rectangle GetContentRectangle(Bitmap image)
         {
             int left = 0, top = 0, right = image.Width - 1, bottom = image.Height - 1;
-            int blackBorder = 240;
+            int blackBorder = Stroke.BLACK_BORDER_MEDIUM;
 
             // Находим левый край
             for (int x = 0; x < image.Width; x++)

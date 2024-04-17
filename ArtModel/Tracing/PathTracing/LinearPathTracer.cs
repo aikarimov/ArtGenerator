@@ -16,18 +16,21 @@ namespace ArtModel.Tracing.PathTracing
         public HashSet<(int x, int y)> Coordinates { get; set; }
         public Color MeanColor { get; set; }
         public double Dispersion { get; set; }
+
+        // Поля для обратной связи, т.к. много путей ищутся параллельно
         public int Length { get; set; }
         public (int x, int y) EndPoint { get; set; }
+        public double Angle { get; set; }
     }
 
     public class LinearPathTracer
-    { 
+    {
         public static TracingPath GetPath(
             ArtBitmap bitmap,
             (int x, int y) pointStart,
             (int x, int y) pointEnd,
             HashSet<(int x, int y)> segmentedPathCoordinates,
-            MeanColorCalculator segmentedCalc, 
+            MeanColorCalculator segmentedCalc,
             int width)
         {
             int radius = width / 2;

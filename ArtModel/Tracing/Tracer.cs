@@ -6,7 +6,9 @@ using ArtModel.Statistics;
 using ArtModel.StrokeLib;
 using ArtModel.Tracing.PathTracing;
 using ArtModel.Tracing.PointDeciding;
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace ArtModel.Tracing
@@ -35,9 +37,11 @@ namespace ArtModel.Tracing
 
         private ArtModelSerializer _artModelSerializer;
 
-        private int _segments = 0;
+        private int _segments;
 
-        private int Genetaions => _artModelSerializer.UserInput.Generations;
+        private int _points => _segments + 1;
+
+        private int _genetaions;
 
         private CancellationToken _token;
 
@@ -47,7 +51,9 @@ namespace ArtModel.Tracing
         public delegate void StatusHandler(string status);
         public event StatusHandler NotifyStatusChange;
 
-        private CanvasShapeGenerator _canvasShapeGenerator;
+        public CanvasShapeGenerator CanvasShapeGenerator;
+
+        private object _lock = new object();
 
         public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, PathSettings pathSettings, CancellationToken cancellationToken)
         {
@@ -56,6 +62,8 @@ namespace ArtModel.Tracing
             originalModel = originalCanvas;
             _token = cancellationToken;
             _segments = serealizer.UserInput.Segments;
+            _genetaions = serealizer.UserInput.Generations;
+            CanvasShapeGenerator = new CanvasShapeGenerator(originalModel);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -68,17 +76,17 @@ namespace ArtModel.Tracing
             NotifyStatusChange?.Invoke(TracingState.Prepare.Locale);
             StrokeLibrary strokeLibrary = new StrokeLibrary(_pathSettings.LibraryPath, _artModelSerializer, 1);
 
-            ArtBitmap artificialRender = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
-            ArtBitmap artificialModel = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
-            ArtBitmap shapesBm = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
-            ArtBitmap frameBm = new ArtBitmap(originalModel.Width, originalModel.Height).FillColor(Color.White);
-            _canvasShapeGenerator = new CanvasShapeGenerator(originalModel);
+            ArtBitmap artificialRender = new ArtBitmap(originalModel.Width, originalModel.Height);
+            artificialRender.FillColor(Color.White);
+
+            ArtBitmap artificialModel = new ArtBitmap(originalModel.Width, originalModel.Height);
+            artificialModel.FillColor(Color.White);
 
             // Класс для выборки точек (инициализация)
             IPointDecider decider = new RandomPointDecider();
 
             // Генерация рисунка по слоям
-            for (int gen = 0; gen < Genetaions; gen++)
+            for (int gen = 0; gen < _genetaions; gen++)
             {
                 NotifyGenerationsChange?.Invoke(gen);
                 NotifyStatusChange?.Invoke($"{TracingState.Blurring} | Поколение: {gen}");
@@ -144,15 +152,22 @@ namespace ArtModel.Tracing
                 {
                     coordinates = decider.GetNewPoint();
 
-                    TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap);
+                    TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap, 1);
                     if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(tracingResult); }
 
-                    Stroke classified = strokeLibrary.ClassifyStroke(tracingResult, localData);
+                    Stroke classifiedStroke = strokeLibrary.ClassifyStroke(tracingResult, localData);
 
-                    SetupStroke(classified, tracingResult, strokeLibrary);
+                    double resizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, classifiedStroke);
+
+                    classifiedStroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "class");
+                    classifiedStroke.Resize(resizeCoef);
+                    classifiedStroke.Rotate(tracingResult.MainAbsAngle);
+                    classifiedStroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "setup");
+                    var shape = classifiedStroke.GetShape();
+                    shape.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "shape");
 
                     WritePixelsModel(artificialModel, tracingResult.Coordinates, tracingResult.MeanColor, decider);
-                    WritePixelsRender(artificialRender, classified, tracingResult, coordinates, decider);
+                    WritePixelsRender(artificialRender, classifiedStroke, shape, tracingResult, coordinates, decider);
                 }
 
                 yield return (artificialRender, artificialModel);
@@ -205,7 +220,7 @@ namespace ArtModel.Tracing
             return [tracingResult];
         }
 
-        private TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap)
+        private TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap, int direction)
         {
             double tolerance = genData.DispersionStrokeBound;
             int lenMin = genData.StrokeLength_Min;
@@ -229,7 +244,7 @@ namespace ArtModel.Tracing
 
             // Построение каждого сегмента
             // Начинаем строить вторую точку, одна и так есть 100%
-            for (int segmentPoint = 2; segmentPoint <= 2; segmentPoint++)
+            for (int segmentPoint = 2; segmentPoint <= _points; segmentPoint++)
             {
                 if (cancel_stroke_path) { break; }
 
@@ -238,17 +253,18 @@ namespace ArtModel.Tracing
                 double newAngle;
                 switch (segmentPoint)
                 {
-                    // Если строится 2я точка, то это просто прямой мазок. Не нужна доп. обработка
                     case 2:
                         newAngle = NormalAngle(brightnessMap[currPoint.y, currPoint.x]);
+                        if (direction == 0) { newAngle = PiAngle(newAngle); }
                         tracingResult.MainAbsAngle = newAngle;
                         break;
-                    // Если строится 3+ точка, надо смотреть на угол
                     default:
                         var prevPoint = pathPoints[segmentPoint - 2];
                         var angles = GetNewAngle(brightnessMap[currPoint.y, currPoint.x], prevPoint, currPoint);
                         newAngle = angles.absAngle;
-                        tracingResult.SP.SetP(StrokeProperty.Angle1, angles.leftOrRight * angles.relAngle / Math.PI * 180);
+                        var angle1 = (angles.vectorsAngle / Math.PI * 180);
+                        angle1 *= angles.leftDirection ? -1 : 1;
+                        tracingResult.SP.SetP(StrokeProperty.Angle1, angle1);
                         break;
                 }
 
@@ -280,7 +296,7 @@ namespace ArtModel.Tracing
                     if (tpath.Dispersion <= tolerance)
                     {
                         // Путь является минимально возможным - значит окончить мазок
-                        if (tpath.Length <= genData.StrokeLength_Min)
+                        if (tpath.Length <= lenMin)
                         {
                             cancel_stroke_path = true;
                             break;
@@ -299,6 +315,7 @@ namespace ArtModel.Tracing
                             segmentedPathCoordinates.UnionWith(tpath.Coordinates);
 
                             tracingResult.SP.SetP(StrokeProperty.Points, segmentPoint);
+
                             pathPoints.Add(segmentPoint, tpath.EndPoint);
                             pathSegmentLengths.Add(segmentPoint - 1, tpath.Length);
                             break;
@@ -312,7 +329,7 @@ namespace ArtModel.Tracing
 
             return tracingResult;
 
-            (double absAngle, double relAngle, int leftOrRight) GetNewAngle(double absAngle, (int x, int y) prevPoint, (int x, int y) currPoint)
+            (double absAngle, double vectorsAngle, bool leftDirection) GetNewAngle(double absAngle, (int x, int y) prevPoint, (int x, int y) currPoint)
             {
                 // Взяли нормаль к углу
                 absAngle = NormalAngle(absAngle);
@@ -321,37 +338,32 @@ namespace ArtModel.Tracing
                 (int x, int y) newPoint = VectorMath.PointOffset(currPoint, absAngle, 10);
 
                 // Относительный угол между тремя точками, от 0 до PI
-                double newRelAngle = VectorMath.AngleBy3Points(prevPoint, currPoint, newPoint);
+                double angleBetwreenVectors = VectorMath.AngleBy3Points(prevPoint, currPoint, newPoint);
 
                 // Если относительный угол между сегментами мазка оказался острым, разворачиваем на 180 градусов всё
-                if (newRelAngle < Math.PI / 2)
+                if (angleBetwreenVectors < Math.PI / 2)
                 {
-                    newRelAngle += Math.PI;
+                    angleBetwreenVectors = Math.PI - angleBetwreenVectors;
                     absAngle += Math.PI;
                     newPoint = VectorMath.PointOffset(currPoint, absAngle, 10);
                 }
 
                 // На этом этапе у нас точно есть правильный расчётный сегмента из трёх точек
 
-                int leftOrRight = -VectorMath.LeftOrRight(prevPoint, currPoint, newPoint);
+                bool left = VectorMath.LeftOrRight(prevPoint, currPoint, newPoint) == 1;
 
-                // Делаем относительный угол таким, чтобы подходил под классификацию в библиотеке. Так как отклонение в градусах идёт от угла PI
-                newRelAngle = Math.PI - newRelAngle;
-
-                return (absAngle, newRelAngle, leftOrRight);
+                return (absAngle, angleBetwreenVectors, left);
             }
 
             double NormalAngle(double angle)
             {
                 return (angle + Math.PI / 2) % (Math.Tau);
             }
-        }
 
-        private void SetupStroke(Stroke stroke, TracingResult tracingResult, StrokeLibrary strokeLibrary)
-        {
-            double resizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, stroke);
-            stroke.Resize(resizeCoef);
-            stroke.Rotate(tracingResult.MainAbsAngle);
+            double PiAngle(double angle)
+            {
+                return (angle + Math.PI) % (Math.Tau);
+            }
         }
 
         private void WritePixelsModel(ArtBitmap artificialModel, HashSet<(int x, int y)> coordonates, Color color, IPointDecider decider = null)
@@ -362,12 +374,12 @@ namespace ArtModel.Tracing
             }
         }
 
-        private void WritePixelsRender(ArtBitmap artificialRender, Stroke stroke, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
+        private void WritePixelsRender(ArtBitmap artificialRender, Stroke stroke, ArtBitmap shape, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
         {
             globalPoint = PointOffset(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2);
 
             Color color = tracingResult.MeanColor;
-            _canvasShapeGenerator.OpenNewStroke(color);
+            CanvasShapeGenerator.OpenNewStroke(color);
 
             for (int x = 0; x < stroke.Width; x++)
             {
@@ -376,12 +388,19 @@ namespace ArtModel.Tracing
                     int globalX = globalPoint.x - stroke.PivotPoint.x + x;
                     int globalY = globalPoint.y - stroke.PivotPoint.y + y;
 
-                    byte strokeAlpha = stroke[x, y].R;
-                    if (artificialRender.IsInside(globalX, globalY) && strokeAlpha < 255)
+                    if (artificialRender.IsInside(globalX, globalY))
                     {
-                        artificialRender[globalX, globalY] = CalculateAlpha(artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
-                        decider?.PointCallback((globalX, globalY));
-                        //_canvasShapeGenerator.AddPixel((globalX, globalY));
+                        // Наложение обычного мазка
+                        byte strokeAlpha = stroke[x, y].R;
+                        if (strokeAlpha < Stroke.BLACK_BORDER_MEDIUM)
+                        {
+                            artificialRender[globalX, globalY] = CalculateAlpha(artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
+                            decider?.PointCallback((globalX, globalY));
+                        }
+
+                        // Запись контура
+                        if (shape[x, y].R == 255) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
+                        if (shape[x, y].G == 255) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
                     }
                 }
             }

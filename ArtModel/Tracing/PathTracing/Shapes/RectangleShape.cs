@@ -19,10 +19,11 @@ namespace ArtModel.Tracing.PathTracing.Shapes
             var p3 = points[2];
             var p4 = points[3];
 
-            if (p1.x == p2.x || p1.y == p2.y)
+            if ((Math.Abs(p1.x - p2.x) <= 1) || (Math.Abs(p1.y - p2.y) <= 1))
             {
-                RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
-                RectangleShapeConstraintsCalculator.CalculateHorizontalConstraints(p1, p3, _constraints);
+                // Ограничения на прямоугольник криво работали. Да и по факту они не нужны, ведь все точки 100% войдут
+                //RectangleShapeConstraintsCalculator.CalculateVertivalConstraints(p1, p3, _constraints);
+                //RectangleShapeConstraintsCalculator.CalculateHorizontalConstraints(p1, p3, _constraints);
                 return;
             }
 
@@ -31,7 +32,7 @@ namespace ArtModel.Tracing.PathTracing.Shapes
 
         public bool IsInside((int x, int y) point)
         {
-            return _constraints.All(func => func(point));
+            return _constraints.Count == 0 ? true : _constraints.All(func => func(point));
         }
     }
 

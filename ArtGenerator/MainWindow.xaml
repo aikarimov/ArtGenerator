@@ -88,6 +88,7 @@
                 </TransformGroup>
             </CheckBox.LayoutTransform>
         </CheckBox>
+        <Image x:Name="bitmap_image_Copy" Margin="4,4,1117,446"/>
 
     </Grid>
 

@@ -44,7 +44,7 @@ namespace ArtModel.ImageProccessing
             LockBitmap();
         }
 
-        public ArtBitmap FillColor(Color color)
+        public void FillColor(Color color)
         {
             UnlockBitmap();
             using (Graphics g = Graphics.FromImage(bitmap))
@@ -55,7 +55,6 @@ namespace ArtModel.ImageProccessing
                 }
             }
             LockBitmap();
-            return this;
         }
 
         public ArtBitmap Copy()
@@ -89,7 +88,7 @@ namespace ArtModel.ImageProccessing
                     byte blue = _pixelData[position];
                     byte green = _pixelData[position + 1];
                     byte red = _pixelData[position + 2];
-                    return Color.FromArgb(red, green, blue);
+                    return Color.FromArgb(255, red, green, blue);
                 }
                 else
                 {
