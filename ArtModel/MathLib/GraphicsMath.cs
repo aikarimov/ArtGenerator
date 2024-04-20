@@ -1,10 +1,5 @@
-﻿using ArtModel.Tracing;
-using System;
-using System.Collections.Generic;
+﻿using ArtModel.ImageProccessing;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ArtModel.MathLib
 {
@@ -44,6 +39,48 @@ namespace ArtModel.MathLib
             }
 
             return points;
+        }
+
+        public static Color CalculateAlpha(in Color back, in Color front, in double a)
+        {
+            return Color.FromArgb(
+                Math.Clamp((int)(a * front.R + (1 - a) * back.R), 0, 255),
+                Math.Clamp((int)(a * front.G + (1 - a) * back.G), 0, 255),
+                Math.Clamp((int)(a * front.B + (1 - a) * back.B), 0, 255));
+        }
+
+        public static double ColorEuclideanDistance(in Color color1, in Color color2)
+        {
+            double R_sq = Math.Pow(color1.R - color2.R, 2);
+            double G_sq = Math.Pow(color1.G - color2.G, 2);
+            double B_sq = Math.Pow(color1.B - color2.B, 2);
+            return Math.Sqrt(R_sq + G_sq + B_sq);
+        }
+
+        public static double CalculateSquaredEuclideanDistance(in Color color1, in Color color2)
+        {
+            double R_sq = Math.Pow(color1.R - color2.R, 2);
+            double G_sq = Math.Pow(color1.G - color2.G, 2);
+            double B_sq = Math.Pow(color1.B - color2.B, 2);
+            return R_sq + G_sq + B_sq;
+        }
+
+        public static double GetDispersion(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
+        {
+            double sum = 0.0;
+            int count = 0;
+
+            foreach (var set in pixelSets)
+            {
+                foreach (var pixel in set)
+                {
+                    count++;
+                    double eucl = CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
+                    sum += eucl;
+                }
+            }
+
+            return (sum / count);
         }
     }
 }

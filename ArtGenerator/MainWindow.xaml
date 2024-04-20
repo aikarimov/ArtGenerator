@@ -89,6 +89,16 @@
             </CheckBox.LayoutTransform>
         </CheckBox>
         <Image x:Name="bitmap_image_Copy" Margin="4,4,1117,446"/>
+        <CheckBox x:Name="checkbox_shapes_map" Content="Карта контуров и скелетов" HorizontalAlignment="Left" Margin="838,332,0,0" VerticalAlignment="Top" Height="18" Width="161" IsChecked="False" UseLayoutRounding="False" FontStretch="Normal" FontSize="11">
+            <CheckBox.LayoutTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="2" ScaleY="2" />
+                    <SkewTransform/>
+                    <RotateTransform/>
+                    <TranslateTransform X="-1.4"/>
+                </TransformGroup>
+            </CheckBox.LayoutTransform>
+        </CheckBox>
 
     </Grid>
 

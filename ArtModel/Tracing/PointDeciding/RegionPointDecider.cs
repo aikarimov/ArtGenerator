@@ -59,23 +59,23 @@ namespace ArtModel.Tracing.PointDeciding
 
     public class RegionPointDecider : IPointDecider
     {
-        private ArtBitmap _original;
+        protected ArtBitmap _original;
 
-        private ArtBitmap _artificial;
+        protected ArtBitmap _artificial;
 
-        private Tile[,] _tiles;
+        protected Tile[,] _tiles;
 
-        private bool[,] _avaliableTiles;
-        private List<(int x, int y)> _orderedTileIndex;
+        protected bool[,] _avaliableTiles;
+        protected List<(int x, int y)> _orderedTileIndex;
 
-        private int _tileWidth;
-        private int _tileHeight;
+        protected int _tileWidth;
+        protected int _tileHeight;
 
-        private double _dispersionBound;
+        protected double _dispersionBound;
 
-        private HashSet<(int x, int y)> _tilesToRecalculate;
+        protected HashSet<(int x, int y)> _tilesToRecalculate;
 
-        private (int w, int h) _tilesCount;
+        protected (int w, int h) _tilesCount;
 
         public RegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound)
         {
@@ -89,7 +89,7 @@ namespace ArtModel.Tracing.PointDeciding
             GenerateTiles(_tileWidth, _tileHeight);
         }
 
-        private void GenerateTiles(int tileWidth, int tileHeight)
+        protected void GenerateTiles(int tileWidth, int tileHeight)
         {
             // Разбитие поля на клетки
             int sizeX = (int)Math.Ceiling((double)_original.Width / tileWidth);
@@ -133,7 +133,7 @@ namespace ArtModel.Tracing.PointDeciding
             }
         }
 
-        private void SortOrderedList()
+        protected void SortOrderedList()
         {
             _orderedTileIndex.Sort((s1, s2) => _tiles[s2.y, s2.x].Dispersion.CompareTo(_tiles[s1.y, s1.x].Dispersion));
         }
@@ -185,6 +185,15 @@ namespace ArtModel.Tracing.PointDeciding
             }
             SortOrderedList();
             _tilesToRecalculate = new();
+        }
+    }
+
+    // Модификации
+    public class WeightedRegionPointDecider : RegionPointDecider
+    {
+        public WeightedRegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound) : base(original, arificial, tileWidth, tileHeight, dispersionBound)
+        {
+
         }
     }
 }

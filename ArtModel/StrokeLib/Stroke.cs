@@ -1,15 +1,8 @@
-﻿using ArtModel.Tracing;
-using ArtModel.ImageProccessing;
-using System;
-using System.Collections.Generic;
+﻿using ArtModel.ImageProccessing;
+using ArtModel.MathLib;
+using ArtModel.Tracing;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ArtModel.Core;
-using ArtModel.MathLib;
-using System.Drawing.Imaging;
 
 namespace ArtModel.StrokeLib
 {
@@ -23,6 +16,8 @@ namespace ArtModel.StrokeLib
         private static Color ShapeColor = Color.FromArgb(255, 255, 0, 0);
         private static Color FillerColor = Color.FromArgb(255, 0, 255, 0);
 
+        private object locker = new object();
+
         public Stroke(Bitmap bitmap) : base(bitmap)
         {
             SP = new StrokePropertyCollection<double>();
@@ -35,11 +30,14 @@ namespace ArtModel.StrokeLib
 
         public new Stroke Copy()
         {
-            return new Stroke((Bitmap)bitmap.Clone())
+            lock (locker)
             {
-                SP = SP,
-                PivotPoint = PivotPoint,
-            };
+                return new Stroke((Bitmap)bitmap.Clone())
+                {
+                    SP = SP,
+                    PivotPoint = PivotPoint,
+                };
+            }  
         }
 
         public void Flip(RotateFlipType flipType)
@@ -92,7 +90,7 @@ namespace ArtModel.StrokeLib
         // 
         // Я забыл как оно работает :(
         // 
-        public void Rotate(double rotationAngle)
+        public void Rotate(double rotationAngle, Color fillColor)
         {
             double relAngle = rotationAngle - Math.PI / 2;
 
@@ -120,7 +118,7 @@ namespace ArtModel.StrokeLib
 
             using (Graphics g = Graphics.FromImage(rotatedBitmap))
             {
-                using (SolidBrush brush = new SolidBrush(Color.FromArgb(255, 255, 255, 255)))
+                using (SolidBrush brush = new SolidBrush(fillColor))
                 {
                     g.FillRectangle(brush, 0, 0, newWidth, newHeight);
                 }
@@ -191,7 +189,7 @@ namespace ArtModel.StrokeLib
             }
         }
 
-        public ArtBitmap GetShape()
+        public Stroke GetShape()
         {
             var bitmap = new ArtBitmap(Width, Height);
 
@@ -200,6 +198,7 @@ namespace ArtModel.StrokeLib
             // Горизонталь
             for (int y = 0; y < Height; y++)
             {
+
                 byte shape_found = 0;
 
                 int x1 = 0;
@@ -287,7 +286,7 @@ namespace ArtModel.StrokeLib
                 // Скан снизу
                 for (int y = 0; y < Height; y++)
                 {
-                    if (bitmap[x, y].R == 255)
+                    if (bitmap[x, y].R == 255 || bitmap[x, y].G == 255)
                     {
                         shape_found += 1;
                         y1 = y;
@@ -298,7 +297,7 @@ namespace ArtModel.StrokeLib
                 // Скан сверху
                 for (int y = Height - 1; y >= 0; y--)
                 {
-                    if (bitmap[x, y].R == 255)
+                    if (bitmap[x, y].R == 255 || bitmap[x, y].G == 255)
                     {
                         shape_found += 1;
                         y2 = y;
@@ -306,7 +305,7 @@ namespace ArtModel.StrokeLib
                     }
                 }
 
-                if (shape_found < 2)
+                if (shape_found == 0)
                 {
                     if (y1_prev != 0 && y2_prev != 0)
                     {
@@ -351,7 +350,13 @@ namespace ArtModel.StrokeLib
                 y2_prev = y2;
             }
 
-            return bitmap;
+            bitmap.UnlockBitmap();
+            Stroke result = new Stroke(bitmap.GetBitmap())
+            {
+                SP = this.SP,
+                PivotPoint = this.PivotPoint
+            };
+            return result;
         }
 
         public (HashSet<(int x, int y)> coordinates, double dispersion) GetBitmapCoordinates(ArtBitmap bitmap, (int x, int y) globalPoint, Color strokeColor)

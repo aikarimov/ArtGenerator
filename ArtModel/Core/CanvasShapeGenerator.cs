@@ -1,4 +1,5 @@
 ﻿using ArtModel.ImageProccessing;
+using ArtModel.MathLib;
 using MoreLinq;
 using System.Drawing;
 
@@ -10,23 +11,13 @@ namespace ArtModel.Core
 
         public int CurrentSize { get; set; }
 
-        Dictionary<int, (int x, int y)> PathPoints { get; set; }
+        public Dictionary<int, (int x, int y)> PathPoints { get; set; }
 
         public Color ShapeColor { get; set; }
 
         public double GetFraction()
         {
             return ((double)CurrentSize) / IntialSize;
-        }
-    }
-
-    public class StrokeRestoreData
-    {
-        public HashSet<(int y, int x)> Pixels { get; set; }
-
-        public StrokeRestoreData()
-        {
-            Pixels = new();
         }
     }
 
@@ -98,10 +89,18 @@ namespace ArtModel.Core
             _currentShapeData.CurrentSize += 1;
         }
 
-        public ArtBitmap CreateShapesBitmap()
+        public void AddStrokeSkelet(Dictionary<int, (int x, int y)> pathPoints)
+        {
+            _currentShapeData.PathPoints = pathPoints;
+        }
+
+        public (ArtBitmap shapes, ArtBitmap skelet) CreateShapesBitmap()
         {
             ArtBitmap shapesBm = new ArtBitmap(_width, _height);
             shapesBm.FillColor(Color.White);
+
+            ArtBitmap skeletBm = new ArtBitmap(_width, _height);
+            skeletBm.FillColor(Color.White);
 
             for (int y = 0; y < _height; y++)
             {
@@ -117,6 +116,7 @@ namespace ArtModel.Core
 
                         if (data.GetFraction() >= VisibilityFraction)
                         {
+                            // Контур
                             if (stackTop.isShape)
                             {
                                 shapesBm[x, y] = data.ShapeColor;
@@ -125,13 +125,23 @@ namespace ArtModel.Core
                             {
                                 shapesBm[x, y] = Color.White;
                             }
+
+                            // Скелет
+                            for (int i = 1; i < data.PathPoints.Count; i++)
+                            {
+                                foreach (var p in GraphicsMath.GetLinePoints(data.PathPoints[i], data.PathPoints[i + 1]))
+                                {
+                                    skeletBm[p.x, p.y] = data.ShapeColor;
+                                }
+                            }
+
                             break;
                         }
                     }
                 }
             }
 
-            return shapesBm;
+            return (shapesBm, skeletBm);
         }
     }
 }

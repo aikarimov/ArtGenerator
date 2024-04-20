@@ -12,6 +12,7 @@ namespace ArtModel.Tracing
         public TracingResult()
         {
             SP = new StrokePropertyCollection<double>();
+            Path = new();
         }
 
         public StrokePropertyCollection<double> SP { get; set; }
@@ -23,5 +24,7 @@ namespace ArtModel.Tracing
         public HashSet<(int x, int y)> Coordinates { get; set; }
 
         public double MainAbsAngle { get; set; }
+
+        public Dictionary<int, (int x, int y)> Path;
     }
 }

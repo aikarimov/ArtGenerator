@@ -10,6 +10,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Text;
 
 namespace ArtModel.Tracing
 {
@@ -31,7 +32,9 @@ namespace ArtModel.Tracing
 
     public class Tracer : IEnumerable<(ArtBitmap, ArtBitmap)>
     {
-        private ArtBitmap originalModel;
+        private ArtBitmap _artificialRender;
+        private ArtBitmap _artificialModel;
+        private ArtBitmap _originalModel;
 
         private PathSettings _pathSettings;
 
@@ -59,11 +62,11 @@ namespace ArtModel.Tracing
         {
             _artModelSerializer = serealizer;
             _pathSettings = pathSettings;
-            originalModel = originalCanvas;
+            _originalModel = originalCanvas;
             _token = cancellationToken;
             _segments = serealizer.UserInput.Segments;
             _genetaions = serealizer.UserInput.Generations;
-            CanvasShapeGenerator = new CanvasShapeGenerator(originalModel);
+            CanvasShapeGenerator = new CanvasShapeGenerator(_originalModel);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -76,11 +79,11 @@ namespace ArtModel.Tracing
             NotifyStatusChange?.Invoke(TracingState.Prepare.Locale);
             StrokeLibrary strokeLibrary = new StrokeLibrary(_pathSettings.LibraryPath, _artModelSerializer, 1);
 
-            ArtBitmap artificialRender = new ArtBitmap(originalModel.Width, originalModel.Height);
-            artificialRender.FillColor(Color.White);
+            _artificialRender = new ArtBitmap(_originalModel.Width, _originalModel.Height);
+            _artificialRender.FillColor(Color.White);
 
-            ArtBitmap artificialModel = new ArtBitmap(originalModel.Width, originalModel.Height);
-            artificialModel.FillColor(Color.White);
+            _artificialModel = new ArtBitmap(_originalModel.Width, _originalModel.Height);
+            _artificialModel.FillColor(Color.White);
 
             // Класс для выборки точек (инициализация)
             IPointDecider decider = new RandomPointDecider();
@@ -92,7 +95,7 @@ namespace ArtModel.Tracing
                 NotifyStatusChange?.Invoke($"{TracingState.Blurring} | Поколение: {gen}");
 
                 ArtGeneration localData = _artModelSerializer.Generations[gen];
-                ArtBitmap blurredOriginalMap = GaussianBlur.ApplyBlur(originalModel, localData.BlurSigma);
+                ArtBitmap blurredOriginalMap = GaussianBlur.ApplyBlur(_originalModel, localData.BlurSigma);
                 double[,] blurredBrightnessMap = GaussianBlur.ApplyBlurToBrightnessMap(BrightnessMap.GetBrightnessMap(blurredOriginalMap), localData.BlurSigma);
                 (int x, int y) coordinates;
 
@@ -103,7 +106,7 @@ namespace ArtModel.Tracing
                 {
                     // Отрисовка первого слоя. Он рисуется, пока не будет достигнуто N% закрашенности. Рисуется случайно из точек, что ещё не были затрнуты.
                     case 0:
-                        decider = new RandomPointDecider(originalModel, 1);
+                        decider = new RandomPointDecider(_originalModel, 1);
                         while (decider.DeciderAvaliable())
                         {
                             if (CheckToken())
@@ -115,13 +118,13 @@ namespace ArtModel.Tracing
                             MakeStroke();
                             decider.PostStroke();
 
-                            yield return (artificialRender, artificialModel);
+                            yield return (_artificialRender, _artificialModel);
                         }
                         break;
                     // Отрисовка обычных слоёв
                     default:
                         (int w, int h) tileData = (localData.StrokeWidth_Max, localData.StrokeWidth_Max);
-                        decider = new RegionPointDecider(originalModel, artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
+                        decider = new RegionPointDecider(_originalModel, _artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
@@ -142,7 +145,7 @@ namespace ArtModel.Tracing
 
                             decider.PostStroke();
 
-                            yield return (artificialRender, artificialModel);
+                            yield return (_artificialRender, _artificialModel);
                         }
                         break;
                 }
@@ -152,25 +155,45 @@ namespace ArtModel.Tracing
                 {
                     coordinates = decider.GetNewPoint();
 
-                    TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap, 1);
-                    if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(tracingResult); }
+                    var tasks = new Task[2];
+                    var results = new (TracingResult tracing, Stroke stroke)[2];
 
-                    Stroke classifiedStroke = strokeLibrary.ClassifyStroke(tracingResult, localData);
+                    CreateTask(0, 1);
+                    CreateTask(1, -1);
 
-                    double resizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, classifiedStroke);
+                    void CreateTask(int index, int direction)
+                    {
+                        int i = index;
+                        tasks[i] = Task.Run(() =>
+                        {
+                            TracingResult currentTracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap, direction);
+                            Stroke currentClassifiedStroke = strokeLibrary.ClassifyStroke(currentTracingResult, localData);
+                            double currentresizeCoef = strokeLibrary.CalculateResizeCoefficient(currentTracingResult, currentClassifiedStroke);
+                            currentClassifiedStroke.Resize(currentresizeCoef);
+                            currentClassifiedStroke.Rotate(currentTracingResult.MainAbsAngle, Color.White);
+                            results[i].stroke = currentClassifiedStroke;
+                            results[i].tracing = currentTracingResult;
+                        });
+                    }
 
-                    classifiedStroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "class");
-                    classifiedStroke.Resize(resizeCoef);
-                    classifiedStroke.Rotate(tracingResult.MainAbsAngle);
-                    classifiedStroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "setup");
-                    var shape = classifiedStroke.GetShape();
-                    shape.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes\\", "shape");
+                    Task.WaitAll(tasks);
 
-                    WritePixelsModel(artificialModel, tracingResult.Coordinates, tracingResult.MeanColor, decider);
-                    WritePixelsRender(artificialRender, classifiedStroke, shape, tracingResult, coordinates, decider);
+                    (TracingResult tracing, Stroke stroke) finalResult = results.MinBy(tr => CalculateStrokeDispersion(tr.stroke, tr.tracing, coordinates))!;
+
+                    if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(finalResult.tracing); }
+
+                    Stroke? shape = null;
+                    if (ArtStatistics.Instance.ShapesMap)
+                    {
+                        shape = finalResult.stroke.GetShape();
+                        shape.Rotate(finalResult.tracing.MainAbsAngle, Color.Black);
+                    }
+
+                    WritePixelsModel(finalResult.tracing.Coordinates, finalResult.tracing.MeanColor, decider);
+                    WritePixelsRender(finalResult.stroke, shape, finalResult.tracing, coordinates, decider);
                 }
 
-                yield return (artificialRender, artificialModel);
+                yield return (_artificialRender, _artificialModel);
             }
         }
 
@@ -255,7 +278,7 @@ namespace ArtModel.Tracing
                 {
                     case 2:
                         newAngle = NormalAngle(brightnessMap[currPoint.y, currPoint.x]);
-                        if (direction == 0) { newAngle = PiAngle(newAngle); }
+                        if (direction == -1) { newAngle = PiAngle(newAngle); }
                         tracingResult.MainAbsAngle = newAngle;
                         break;
                     default:
@@ -324,6 +347,7 @@ namespace ArtModel.Tracing
                 }
             }
 
+            tracingResult.Path = pathPoints;
             tracingResult.Coordinates = segmentedPathCoordinates;
             tracingResult.MeanColor = segmentedCalculator.GetMeanColor();
 
@@ -366,20 +390,11 @@ namespace ArtModel.Tracing
             }
         }
 
-        private void WritePixelsModel(ArtBitmap artificialModel, HashSet<(int x, int y)> coordonates, Color color, IPointDecider decider = null)
+        private double CalculateStrokeDispersion(Stroke stroke, TracingResult tracingResult, (int x, int y) globalPoint)
         {
-            foreach (var c in coordonates)
-            {
-                artificialModel[c.x, c.y] = color;
-            }
-        }
-
-        private void WritePixelsRender(ArtBitmap artificialRender, Stroke stroke, ArtBitmap shape, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
-        {
-            globalPoint = PointOffset(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2);
-
+            globalPoint = VectorMath.PointOffsetClamp(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2, _artificialRender.Width, _artificialRender.Height);
             Color color = tracingResult.MeanColor;
-            CanvasShapeGenerator.OpenNewStroke(color);
+            double disperson = 0;
 
             for (int x = 0; x < stroke.Width; x++)
             {
@@ -388,36 +403,64 @@ namespace ArtModel.Tracing
                     int globalX = globalPoint.x - stroke.PivotPoint.x + x;
                     int globalY = globalPoint.y - stroke.PivotPoint.y + y;
 
-                    if (artificialRender.IsInside(globalX, globalY))
+                    if (_artificialRender.IsInside(globalX, globalY))
+                    {
+                        byte strokeAlpha = stroke[x, y].R;
+                        if (strokeAlpha < Stroke.BLACK_BORDER_MEDIUM)
+                        {
+                            Color renderColor = GraphicsMath.CalculateAlpha(_artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
+                            Color originalColor = _originalModel[globalX, globalY];
+                            disperson += GraphicsMath.CalculateSquaredEuclideanDistance(renderColor, originalColor);
+                        }
+                    }
+                }
+            }
+
+            return disperson;
+        }
+
+        private void WritePixelsModel(HashSet<(int x, int y)> coordonates, Color color, IPointDecider decider = null)
+        {
+            foreach (var c in coordonates)
+            {
+                _artificialModel[c.x, c.y] = color;
+            }
+        }
+
+        private void WritePixelsRender(Stroke stroke, Stroke? shape, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
+        {
+            globalPoint = VectorMath.PointOffsetClamp(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2, _artificialRender.Width, _artificialRender.Height);
+
+            Color color = tracingResult.MeanColor;
+            CanvasShapeGenerator.OpenNewStroke(color);
+
+            if (ArtStatistics.Instance.ShapesMap)
+            {
+                CanvasShapeGenerator.AddStrokeSkelet(tracingResult.Path);
+            }
+
+            for (int x = 0; x < stroke.Width; x++)
+            {
+                for (int y = 0; y < stroke.Height; y++)
+                {
+                    int globalX = globalPoint.x - stroke.PivotPoint.x + x;
+                    int globalY = globalPoint.y - stroke.PivotPoint.y + y;
+
+                    if (_artificialRender.IsInside(globalX, globalY))
                     {
                         // Наложение обычного мазка
                         byte strokeAlpha = stroke[x, y].R;
                         if (strokeAlpha < Stroke.BLACK_BORDER_MEDIUM)
                         {
-                            artificialRender[globalX, globalY] = CalculateAlpha(artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
+                            _artificialRender[globalX, globalY] = GraphicsMath.CalculateAlpha(_artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
                             decider?.PointCallback((globalX, globalY));
                         }
 
                         // Запись контура
-                        if (shape[x, y].R == 255) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
-                        if (shape[x, y].G == 255) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
+                        if (shape?[x, y].G > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
+                        if (shape?[x, y].R > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
                     }
                 }
-            }
-
-            (int x, int y) PointOffset((int x, int y) p, double angle, double length)
-            {
-                return (
-                    Math.Clamp(p.x + (int)(length * Math.Cos(angle)), 0, artificialRender.Width - 1),
-                    Math.Clamp(p.y + (int)(length * Math.Sin(angle)), 0, artificialRender.Height - 1));
-            }
-
-            Color CalculateAlpha(in Color back, in Color front, in double a)
-            {
-                return Color.FromArgb(
-                    Math.Clamp((int)(a * front.R + (1 - a) * back.R), 0, 255),
-                    Math.Clamp((int)(a * front.G + (1 - a) * back.G), 0, 255),
-                    Math.Clamp((int)(a * front.B + (1 - a) * back.B), 0, 255));
             }
         }
     }

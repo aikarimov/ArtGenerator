@@ -99,6 +99,9 @@ namespace ArtGenerator
 
             checkbox_collect_data.Checked += (s, e) => { ArtStatistics.Instance.CollectStatistics = true; };
             checkbox_collect_data.Unchecked += (s, e) => { ArtStatistics.Instance.CollectStatistics = false; };
+
+            checkbox_shapes_map.Checked += (s, e) => { ArtStatistics.Instance.ShapesMap = true; };
+            checkbox_shapes_map.Unchecked += (s, e) => { ArtStatistics.Instance.ShapesMap = false; };
         }
 
         private void Reload()
@@ -248,8 +251,9 @@ namespace ArtGenerator
                 // Отрисовка скелетов/контуров
                 Task.Run(() =>
                 {
-                    var shapesBm = tracer.CanvasShapeGenerator.CreateShapesBitmap();
-                    shapesBm.Save($"{outPath}\\{ShapesSubFolder}", "Shapes");
+                    var shapedata = tracer.CanvasShapeGenerator.CreateShapesBitmap();
+                    shapedata.shapes.Save($"{outPath}\\{ShapesSubFolder}", "Shapes");
+                    shapedata.skelet.Save($"{outPath}\\{ShapesSubFolder}", "Skelet");
                 });
             }); 
         }
@@ -325,6 +329,11 @@ namespace ArtGenerator
             {
                 MessageBox.Show("Ошибка при сохранении файла: " + ex.Message);
             }
+        }
+
+        private void checkbox_shapes_map_Checked(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

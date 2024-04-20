@@ -3,35 +3,6 @@ using ArtModel.ImageProccessing;
 
 namespace ArtModel.Tracing
 {
-    public class StrokeUtils
-    {
-        public static double GetDispersion(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
-        {
-            double sum = 0.0;
-            int count = 0;
-
-            foreach (var set in pixelSets)
-            {
-                foreach (var pixel in set)
-                {
-                    count++;
-                    double eucl = CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
-                    sum += eucl;
-                }
-            }
-
-            return (sum / count);
-
-            static double CalculateSquaredEuclideanDistance(in Color c1, in Color c2)
-            {
-                double R_sq = Math.Pow(c1.R - c2.R, 2);
-                double G_sq = Math.Pow(c1.G - c2.G, 2);
-                double B_sq = Math.Pow(c1.B - c2.B, 2);
-                return R_sq + G_sq + B_sq;
-            }
-        }
-    }
-
     public class MeanColorCalculator
     {
         private int R_count = 0;

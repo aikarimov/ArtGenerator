@@ -91,6 +91,9 @@ namespace ArtModel.Statistics
 
         public bool CollectStatistics { get; set; }
 
+        public bool ShapesMap { get; set; }
+
+
         public Dictionary<int, TilesStatistics> TilesData;
         public Dictionary<int, StrokeStatistics> StrokesData;
 

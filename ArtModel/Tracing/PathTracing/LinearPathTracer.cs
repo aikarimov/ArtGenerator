@@ -73,7 +73,7 @@ namespace ArtModel.Tracing.PathTracing
             AddCirclePoints(StrokeCircleMask.ApplyCircleMask(bitmap, pointEnd.x, pointEnd.y, radius));
 
             Color meanColor = localCalculator.GetMeanColor();
-            double dispersion = StrokeUtils.GetDispersion(bitmap, meanColor, localPathCoordinates, segmentedPathCoordinates);
+            double dispersion = GraphicsMath.GetDispersion(bitmap, meanColor, localPathCoordinates, segmentedPathCoordinates);
 
             return new TracingPath()
             {
