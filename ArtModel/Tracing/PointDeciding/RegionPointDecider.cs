@@ -1,5 +1,7 @@
 ﻿using ArtModel.ImageProccessing;
+using ArtModel.MathLib;
 using ArtModel.Statistics;
+using System.Diagnostics.Metrics;
 using System.Drawing;
 
 namespace ArtModel.Tracing.PointDeciding
@@ -28,8 +30,8 @@ namespace ArtModel.Tracing.PointDeciding
             {
                 for (int y = _p.y; y < _p.y + _wh.h; y++)
                 {
-                    double localDispersion = ColorEuclideanDistance(original[x, y], artificial[x, y]);
-                    Dispersion += localDispersion;
+                    double localDispersion = GraphicsMath.CalculateSquaredEuclideanDistance(original[x, y], artificial[x, y]);
+                    Dispersion += (localDispersion);
                     if (localDispersion > maxLocalDispersion)
                     {
                         maxLocalDispersion = localDispersion;
@@ -46,14 +48,6 @@ namespace ArtModel.Tracing.PointDeciding
             return (
                    (p.x >= _p.x && p.x < _p.x + _wh.w) &&
                    (p.y >= _p.y && p.y < _p.y + _wh.h));
-        }
-
-        private static double ColorEuclideanDistance(in Color color1, in Color color2)
-        {
-            double redDiff = color1.R - color2.R;
-            double greenDiff = color1.G - color2.G;
-            double blueDiff = color1.B - color2.B;
-            return Math.Sqrt(redDiff * redDiff + greenDiff * greenDiff + blueDiff * blueDiff);
         }
     }
 
@@ -138,7 +132,7 @@ namespace ArtModel.Tracing.PointDeciding
             _orderedTileIndex.Sort((s1, s2) => _tiles[s2.y, s2.x].Dispersion.CompareTo(_tiles[s1.y, s1.x].Dispersion));
         }
 
-        public (int x, int y) GetNewPoint()
+        public virtual (int x, int y) GetNewPoint()
         {
             for (int i = 0; i < _orderedTileIndex.Count; i++)
             {
@@ -173,7 +167,7 @@ namespace ArtModel.Tracing.PointDeciding
             _tilesToRecalculate.Add((x_new, y_new));
         }
 
-        public void PostStroke()
+        public virtual void PostStroke()
         {
             foreach (var t in _tilesToRecalculate)
             {
@@ -191,9 +185,134 @@ namespace ArtModel.Tracing.PointDeciding
     // Модификации
     public class WeightedRegionPointDecider : RegionPointDecider
     {
+        private double _boundFactor = 0.05;
+
+        private double _dispersionBoundReuse = 0.95;
+
+        private byte _maxReuseCount = 5;
+
+        protected byte[,] _reuseLeft;
+
         public WeightedRegionPointDecider(ArtBitmap original, ArtBitmap arificial, int tileWidth, int tileHeight, double dispersionBound) : base(original, arificial, tileWidth, tileHeight, dispersionBound)
         {
+            _reuseLeft = new byte[_avaliableTiles.GetLength(0), _avaliableTiles.GetLength(1)];
 
+            double minDisp = int.MaxValue;
+            double maxDisp = int.MinValue;
+
+            for (int x = 0; x < _tilesCount.w; x++)
+            {
+                for (int y = 0; y < _tilesCount.h; y++)
+                {
+                    var disp = _tiles[y, x].Dispersion;
+                    if (disp < minDisp) minDisp = disp;
+                    if (disp > maxDisp) maxDisp = disp;
+
+                    _reuseLeft[y, x] = _maxReuseCount;
+                }
+            }
+
+            _dispersionBound = _boundFactor * (maxDisp - minDisp) + minDisp;
+
+            _dispersionBoundReuse = _dispersionBoundReuse * (maxDisp - minDisp) + minDisp;
+        }
+
+        public override (int x, int y) GetNewPoint()
+        {
+            return base.GetNewPoint();
+
+
+            for (int i = 0; i < _orderedTileIndex.Count; i++)
+            {
+                var index = _orderedTileIndex[i];
+                Tile tile = _tiles[index.y, index.x];
+
+                if (_reuseLeft[index.y, index.x] > 0 && tile.Dispersion >= _dispersionBound)
+                {
+                    if (tile.Dispersion < _dispersionBoundReuse)
+                    {
+                        _avaliableTiles[index.y, index.x] = false;
+                        _orderedTileIndex.Remove(index);
+                    }
+
+                    return _tiles[index.y, index.x].MaxDispersionPoint;
+                }
+            }
+
+            throw new Exception();
+        }
+
+        public override void PostStroke()
+        {
+            base.PostStroke();
+            return;
+
+            foreach (var t in _tilesToRecalculate)
+            {
+                if (_avaliableTiles[t.y, t.x])
+                {
+                    var tile = _tiles[t.y, t.x];
+                    tile.CalculateDisperion(_original, _artificial);
+                }
+            }
+            SortOrderedList();
+            _tilesToRecalculate = new();
+        }
+    }
+
+    public class MaxDispersionPointDecider : IPointDecider
+    {
+        private HashSet<(int x, int y)> _avaliableTiles = new();
+
+        protected ArtBitmap _original;
+        protected ArtBitmap _artificial;
+
+        public MaxDispersionPointDecider(ArtBitmap original, ArtBitmap arificial)
+        {
+            _original = original;
+            _artificial = arificial;
+
+            for (int x = 0; x < original.Width; x += 1)
+            {
+                for (int y = 0; y < original.Height; y += 1)
+                {
+                    _avaliableTiles.Add((x, y));
+                }
+            }
+
+            RecalculatePoints();
+        }
+
+        private void RecalculatePoints()
+        {
+            _avaliableTiles = _avaliableTiles.OrderByDescending(t => GraphicsMath.CalculateSquaredEuclideanDistance(_original[t.x, t.y], _artificial[t.x, t.y])).ToHashSet();
+        }
+
+        public bool DeciderAvaliable()
+        {
+            return true;
+        }
+
+        public (int x, int y) GetNewPoint()
+        {
+            if (_avaliableTiles.Count == 0)
+                throw new Exception();
+
+            RecalculatePoints();
+            var res = _avaliableTiles.ElementAt(0);
+
+            _avaliableTiles.Remove(res);
+
+            return res;
+        }
+
+        public void PointCallback((int x, int y) point)
+        {
+            _avaliableTiles.Remove(point);
+        }
+
+        public void PostStroke()
+        {
         }
     }
 }

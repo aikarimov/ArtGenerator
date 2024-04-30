@@ -1,16 +1,17 @@
 ﻿using ArtModel.Core;
+using ArtModel.Extensions;
 using ArtModel.ImageModel.ImageProccessing;
 using ArtModel.ImageProccessing;
 using ArtModel.MathLib;
+using ArtModel.PhongReflection;
 using ArtModel.Statistics;
 using ArtModel.StrokeLib;
 using ArtModel.Tracing.PathTracing;
 using ArtModel.Tracing.PointDeciding;
-using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Drawing;
-using System.Text;
+using System.Xml.Linq;
 
 namespace ArtModel.Tracing
 {
@@ -124,7 +125,7 @@ namespace ArtModel.Tracing
                     // Отрисовка обычных слоёв
                     default:
                         (int w, int h) tileData = (localData.StrokeWidth_Max, localData.StrokeWidth_Max);
-                        decider = new RegionPointDecider(_originalModel, _artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
+                        decider = new WeightedRegionPointDecider(_originalModel, _artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
@@ -156,7 +157,7 @@ namespace ArtModel.Tracing
                     coordinates = decider.GetNewPoint();
 
                     var tasks = new Task[2];
-                    var results = new (TracingResult tracing, Stroke stroke)[2];
+                    var results = new (TracingResult tracing, Stroke stroke, double dispersion)[2];
 
                     CreateTask(0, 1);
                     CreateTask(1, -1);
@@ -166,31 +167,50 @@ namespace ArtModel.Tracing
                         int i = index;
                         tasks[i] = Task.Run(() =>
                         {
-                            TracingResult currentTracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap, direction);
-                            Stroke currentClassifiedStroke = strokeLibrary.ClassifyStroke(currentTracingResult, localData);
-                            double currentresizeCoef = strokeLibrary.CalculateResizeCoefficient(currentTracingResult, currentClassifiedStroke);
-                            currentClassifiedStroke.Resize(currentresizeCoef);
-                            currentClassifiedStroke.Rotate(currentTracingResult.MainAbsAngle, Color.White);
-                            results[i].stroke = currentClassifiedStroke;
-                            results[i].tracing = currentTracingResult;
+                            TracingResult tracingResult = GetSegmentedTracePath(localData, blurredOriginalMap, coordinates, blurredBrightnessMap, direction);
+                            var stroke = strokeLibrary.ClassifyStroke(tracingResult, localData);
+                            double currentresizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, stroke);
+
+                            /*  if (tracingResult.MeanColor.GetAverage() > PhongReflectionModel.BorderColorBrightness)
+                              {
+                                  var parameters = new PhongReflectionParameters(tracingResult.MeanColor);      
+                                  var normal = stroke.NormalMap;
+                                  stroke.IsPhongLighted = true;
+                                  stroke.PhongModel = PhongReflectionModel.ApplyReflection(stroke, normal, parameters);
+                                  stroke.PhongModel.Resize(currentresizeCoef);
+                                  stroke.PhongModel.Rotate(tracingResult.MainAbsAngle, Color.White);
+                              }*/
+
+                            stroke.Resize(currentresizeCoef);
+
+                            //if (ArtStatistics.Instance.ShapesMap)
+                            //{ 
+                            stroke.InitShape();
+                            stroke.Shape.CalculateShape();
+                            //stroke.Shape.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", $"shape{i}");
+                            //}
+
+
+                            stroke.Rotate(tracingResult.MainAbsAngle, Color.White);
+
+                            results[i].stroke = stroke;
+                            results[i].tracing = tracingResult;
+                            results[i].dispersion = CalculateStrokeDispersion(stroke, tracingResult, coordinates);
                         });
                     }
 
                     Task.WaitAll(tasks);
 
-                    (TracingResult tracing, Stroke stroke) finalResult = results.MinBy(tr => CalculateStrokeDispersion(tr.stroke, tr.tracing, coordinates))!;
+                    var finalResult = results.MinBy(r => r.dispersion)!;
+                    finalResult.stroke.Shape.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", $"shapeFINAL");
+
+                        if (finalResult.dispersion > localData.DispersionTileBound)
+                        return;
 
                     if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(finalResult.tracing); }
 
-                    Stroke? shape = null;
-                    if (ArtStatistics.Instance.ShapesMap)
-                    {
-                        shape = finalResult.stroke.GetShape();
-                        shape.Rotate(finalResult.tracing.MainAbsAngle, Color.Black);
-                    }
-
                     WritePixelsModel(finalResult.tracing.Coordinates, finalResult.tracing.MeanColor, decider);
-                    WritePixelsRender(finalResult.stroke, shape, finalResult.tracing, coordinates, decider);
+                    WritePixelsRender(finalResult.stroke, finalResult.tracing, coordinates, decider);
                 }
 
                 yield return (_artificialRender, _artificialModel);
@@ -200,47 +220,6 @@ namespace ArtModel.Tracing
         private bool CheckToken()
         {
             return _token.IsCancellationRequested;
-        }
-
-        // Обработка результата, приведение к более оптимальному
-        private TracingResult[] FilterTracingResult(TracingResult tracingResult)
-        {
-            double points = tracingResult.SP.GetP(StrokeProperty.Points);
-
-            if (points == 2)
-            {
-                double len = tracingResult.SP.GetP(StrokeProperty.Length);
-
-                // Превращаем слишком короткие мазки в точку
-                if (len <= 5)
-                {
-                    tracingResult.SP.SetP(StrokeProperty.Points, 1);
-                }
-
-                return [tracingResult];
-            }
-
-            if (points == 3)
-            {
-                double len = tracingResult.SP.GetP(StrokeProperty.Length);
-                double angle = tracingResult.SP.GetP(StrokeProperty.Angle1);
-                double fraction = tracingResult.SP.GetP(StrokeProperty.Fraction);
-
-                // Превращаем слишком короткие мазки в точку
-                if (Math.Abs(angle) <= 10)
-                {
-                    tracingResult.SP.SetP(StrokeProperty.Points, 2);
-                }
-
-                if (len <= 5)
-                {
-                    //tracingResult.SP.SetP(StrokeProperty.Points, 1);
-                }
-
-                return [tracingResult];
-            }
-
-            return [tracingResult];
         }
 
         private TracingResult GetSegmentedTracePath(ArtGeneration genData, ArtBitmap bitmap, (int x, int y) startingPoint, double[,] brightnessMap, int direction)
@@ -273,7 +252,7 @@ namespace ArtModel.Tracing
 
                 var currPoint = pathPoints[segmentPoint - 1];
 
-                double newAngle;
+                double newAngle = 0;
                 switch (segmentPoint)
                 {
                     case 2:
@@ -284,12 +263,21 @@ namespace ArtModel.Tracing
                     default:
                         var prevPoint = pathPoints[segmentPoint - 2];
                         var angles = GetNewAngle(brightnessMap[currPoint.y, currPoint.x], prevPoint, currPoint);
+
+                        if (angles.vectorsAngle % Math.Tau >= 2.8)
+                        {
+                            cancel_stroke_path = true;
+                            break;
+                        }
+
                         newAngle = angles.absAngle;
                         var angle1 = (angles.vectorsAngle / Math.PI * 180);
                         angle1 *= angles.leftDirection ? -1 : 1;
                         tracingResult.SP.SetP(StrokeProperty.Angle1, angle1);
                         break;
                 }
+
+                if (cancel_stroke_path) { break; }
 
                 Task[] tasks = new Task[lenMax - lenMin + 1];
                 TracingPath[] tracingPaths = new TracingPath[lenMax - lenMin + 1];
@@ -395,6 +383,7 @@ namespace ArtModel.Tracing
             globalPoint = VectorMath.PointOffsetClamp(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2, _artificialRender.Width, _artificialRender.Height);
             Color color = tracingResult.MeanColor;
             double disperson = 0;
+            int counter = 0;
 
             for (int x = 0; x < stroke.Width; x++)
             {
@@ -408,6 +397,7 @@ namespace ArtModel.Tracing
                         byte strokeAlpha = stroke[x, y].R;
                         if (strokeAlpha < Stroke.BLACK_BORDER_MEDIUM)
                         {
+                            counter++;
                             Color renderColor = GraphicsMath.CalculateAlpha(_artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
                             Color originalColor = _originalModel[globalX, globalY];
                             disperson += GraphicsMath.CalculateSquaredEuclideanDistance(renderColor, originalColor);
@@ -416,7 +406,9 @@ namespace ArtModel.Tracing
                 }
             }
 
-            return disperson;
+            if (counter == 0) counter = 1;
+
+            return disperson / counter;
         }
 
         private void WritePixelsModel(HashSet<(int x, int y)> coordonates, Color color, IPointDecider decider = null)
@@ -427,16 +419,16 @@ namespace ArtModel.Tracing
             }
         }
 
-        private void WritePixelsRender(Stroke stroke, Stroke? shape, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
+        private void WritePixelsRender(Stroke stroke, TracingResult tracingResult, (int x, int y) globalPoint, IPointDecider decider = null)
         {
             globalPoint = VectorMath.PointOffsetClamp(globalPoint, (tracingResult.MainAbsAngle + Math.PI), tracingResult.SP.GetP(StrokeProperty.Width) / 2, _artificialRender.Width, _artificialRender.Height);
 
-            Color color = tracingResult.MeanColor;
-            CanvasShapeGenerator.OpenNewStroke(color);
+            Func<int, int, Color> GetColor = stroke.IsPhongLighted ? (x, y) => { return stroke.PhongModel[x, y]; } : (x, y) => { return tracingResult.MeanColor; };
 
             if (ArtStatistics.Instance.ShapesMap)
             {
-                CanvasShapeGenerator.AddStrokeSkelet(tracingResult.Path);
+                // CanvasShapeGenerator.OpenNewStroke(tracingResult.MeanColor);
+                // CanvasShapeGenerator.AddStrokeSkelet(tracingResult.Path);
             }
 
             for (int x = 0; x < stroke.Width; x++)
@@ -449,19 +441,53 @@ namespace ArtModel.Tracing
                     if (_artificialRender.IsInside(globalX, globalY))
                     {
                         // Наложение обычного мазка
-                        byte strokeAlpha = stroke[x, y].R;
+                        var strokeAlpha = stroke[x, y].R;
                         if (strokeAlpha < Stroke.BLACK_BORDER_MEDIUM)
                         {
-                            _artificialRender[globalX, globalY] = GraphicsMath.CalculateAlpha(_artificialRender[globalX, globalY], color, (255.0 - strokeAlpha) / 255.0);
+                            _artificialRender[globalX, globalY] = GraphicsMath.CalculateAlpha(_artificialRender[globalX, globalY], GetColor(x, y), (255.0 - strokeAlpha) / 255.0);
+
                             decider?.PointCallback((globalX, globalY));
                         }
 
                         // Запись контура
-                        if (shape?[x, y].G > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
-                        if (shape?[x, y].R > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
+                        if (ArtStatistics.Instance.ShapesMap)
+                        {
+                            //if (stroke.Shape?[x, y].G > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
+                            //if (stroke.Shape?[x, y].R > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
+                        }
                     }
                 }
             }
+        }
+
+        public (ArtBitmap bitmap, double dispersion) CreateErrorMap()
+        {
+            double dispersion = 0;
+            var errorMap = new ArtBitmap(_originalModel.Width, _originalModel.Height);
+
+            for (int x = 0; x < _originalModel.Width; x++)
+            {
+                for (int y = 0; y < _originalModel.Height; y++)
+                {
+                    var col1 = _originalModel[x, y];
+                    var col2 = _artificialRender[x, y];
+
+                    dispersion += GraphicsMath.CalculateSquaredEuclideanDistance(col1, col2);
+
+                    double errR = 1 - (Math.Abs(col1.R - col2.R) * 1.0 / 255);
+                    double errG = 1 - (Math.Abs(col1.G - col2.G) * 1.0 / 255);
+                    double errB = 1 - (Math.Abs(col1.B - col2.B) * 1.0 / 255);
+
+                    int R = (int)(255 * errR);
+                    int G = (int)(255 * errG);
+                    int B = (int)(255 * errB);
+
+                    var coldiff = Color.FromArgb(R, G, B);
+                    errorMap[x, y] = coldiff;
+                }
+            }
+
+            return (errorMap, dispersion);
         }
     }
 }

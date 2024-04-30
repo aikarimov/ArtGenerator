@@ -1,5 +1,4 @@
 ﻿using ArtModel.ImageProccessing;
-using ArtModel.MathLib;
 using ArtModel.Tracing;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -13,10 +12,13 @@ namespace ArtModel.StrokeLib
         public static byte BLACK_BORDER_STRONG = 250;
         public static byte BLACK_BORDER_ABSOLUTE = 255;
 
-        private static Color ShapeColor = Color.FromArgb(255, 255, 0, 0);
-        private static Color FillerColor = Color.FromArgb(255, 0, 255, 0);
+        public bool IsPhongLighted = false;
 
         private object locker = new object();
+
+        public Stroke NormalMap { get; set; }
+        public StrokeShape Shape { get; set; }
+        public Stroke PhongModel { get; set; }
 
         public Stroke(Bitmap bitmap) : base(bitmap)
         {
@@ -24,9 +26,15 @@ namespace ArtModel.StrokeLib
             PivotPoint = (Width / 2, Height / 2);
         }
 
-        public (int x, int y) PivotPoint { get; private set; }
+        public Stroke(Stroke stroke) : base(stroke.GetBitmap())
+        {
+            SP = stroke.SP;
+            PivotPoint = stroke.PivotPoint;
+        }
 
-        public StrokePropertyCollection<double> SP { get; private set; }
+        public (int x, int y) PivotPoint { get; set; }
+
+        public StrokePropertyCollection<double> SP { get; set; }
 
         public new Stroke Copy()
         {
@@ -36,8 +44,9 @@ namespace ArtModel.StrokeLib
                 {
                     SP = SP,
                     PivotPoint = PivotPoint,
+                    NormalMap = NormalMap
                 };
-            }  
+            }
         }
 
         public void Flip(RotateFlipType flipType)
@@ -55,6 +64,9 @@ namespace ArtModel.StrokeLib
 
         public void Resize(double coefficient)
         {
+            if (coefficient == 1)
+                return;
+
             Math.Clamp(coefficient, 0.001, 100000);
 
             UnlockBitmap();
@@ -104,10 +116,7 @@ namespace ArtModel.StrokeLib
 
             if (SP.GetP(StrokeProperty.Points) >= 2)
             {
-                double pivotAngle = GetPivotAngle(originalPivot, (0, 0));
-                double pivotRel = pivotAngle + Math.PI / 2;
-                double pivotAbs = rotationAngle + Math.PI + pivotRel;
-                originalPivot = RotatePoint(originalPivot, pivotAbs - pivotAngle);
+                originalPivot = RotatePoint(originalPivot, rotationAngle + 1.5 * Math.PI);
             }
 
             PivotPoint = (originalPivot.x + newWidth / 2, originalPivot.y + newHeight / 2);
@@ -136,227 +145,58 @@ namespace ArtModel.StrokeLib
             Height = newHeight;
             LockBitmap();
 
-            (int x, int y) CalculatePivotPoint()
+            Shape?.Rotate(rotationAngle, Color.Black);
+        }
+
+        public void InitShape()
+        {
+            Shape = new(this);
+        }
+
+        private (int x, int y) CalculatePivotPoint()
+        {
+            StartPointAlign align = SP.GetP(StrokeProperty.Points) == 1 ? StartPointAlign.Center : StartPointAlign.Bottom;
+
+            if (align == StartPointAlign.Center)
             {
-                StartPointAlign align = SP.GetP(StrokeProperty.Points) == 1 ? StartPointAlign.Center : StartPointAlign.Bottom;
-
-                if (align == StartPointAlign.Center)
-                {
-                    return (Width / 2, Height / 2);
-                }
-                else
-                {
-                    int width = Width;
-                    int x1 = 0;
-                    int x2 = width;
-
-                    for (int i = 0; i < width; i++)
-                    {
-                        if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
-                        {
-                            x1 = i;
-                            break;
-                        }
-                    }
-
-                    for (int i = width - 1; i > 0; i--)
-                    {
-                        if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
-                        {
-                            x2 = i;
-                            break;
-                        }
-                    }
-                    return ((x1 + x2) / 2, 0);
-                }
+                return (Width / 2, Height / 2);
             }
-
-            double GetPivotAngle(in (int x, int y) point, in (int x, int y) center)
+            else
             {
-                (int x, int y) vect = (point.x - center.x, point.y - center.y);
-                return Math.Atan2(vect.y, vect.x);
-            }
+                int width = Width;
+                int x1 = 0;
+                int x2 = width;
 
-            (int x, int y) RotatePoint(in (int x, int y) point, in double angle)
-            {
-                double sin = Math.Sin(angle);
-                double cos = Math.Cos(angle);
+                for (int i = 0; i < width; i++)
+                {
+                    if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
+                    {
+                        x1 = i;
+                        break;
+                    }
+                }
 
-                int xnew = (int)(point.x * cos - point.y * sin);
-                int ynew = (int)(point.x * sin + point.y * cos);
-
-                return (xnew, ynew);
+                for (int i = width - 1; i > 0; i--)
+                {
+                    if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
+                    {
+                        x2 = i;
+                        break;
+                    }
+                }
+                return ((x1 + x2) / 2, 0);
             }
         }
 
-        public Stroke GetShape()
+        private (int x, int y) RotatePoint(in (int x, int y) point, in double angle)
         {
-            var bitmap = new ArtBitmap(Width, Height);
+            double sin = Math.Sin(angle);
+            double cos = Math.Cos(angle);
 
-            int x1_prev = 0;
-            int x2_prev = 0;
-            // Горизонталь
-            for (int y = 0; y < Height; y++)
-            {
+            int xnew = (int)(point.x * cos - point.y * sin);
+            int ynew = (int)(point.x * sin + point.y * cos);
 
-                byte shape_found = 0;
-
-                int x1 = 0;
-                int x2 = 0;
-
-                // Скан слева
-                for (int x = 0; x < Width; x++)
-                {
-                    if (this[x, y].R < Stroke.BLACK_BORDER_STRONG)
-                    {
-                        shape_found += 1;
-                        x1 = x;
-                        break;
-                    }
-                }
-
-                // Скан справа
-                for (int x = Width - 1; x >= 0; x--)
-                {
-                    if (this[x, y].R < Stroke.BLACK_BORDER_STRONG)
-                    {
-                        shape_found += 1;
-                        x2 = x;
-                        break;
-                    }
-                }
-
-                if (shape_found < 2)
-                {
-                    if (x1_prev != 0 && x2_prev != 0)
-                    {
-                        foreach (var p in GraphicsMath.GetLinePoints((x1_prev, y), (x2_prev, y)))
-                        {
-                            bitmap[p.x, p.y] = ShapeColor;
-                        }
-                        break;
-                    }
-                    continue;
-                }
-
-                // Нижний и верхний уровени
-                if (y == 0 || y == Height - 1 || (x1_prev == 0 && x2_prev == 0))
-                {
-                    foreach (var p in GraphicsMath.GetLinePoints((x1, y), (x2, y)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-                }
-                //Обычная грань
-                else
-                {
-                    x1 = (x1 + x1_prev) / 2;
-                    x2 = (x2 + x2_prev) / 2;
-
-                    for (int x_i = x1; x_i <= x2; x_i++)
-                    {
-                        bitmap[x_i, y] = FillerColor;
-                    }
-
-                    foreach (var p in GraphicsMath.GetLinePoints((x1_prev, y - 1), (x1, y)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-
-                    foreach (var p in GraphicsMath.GetLinePoints((x2_prev, y - 1), (x2, y)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-                }
-
-                x1_prev = x1;
-                x2_prev = x2;
-            }
-
-            int y1_prev = 0;
-            int y2_prev = 0;
-            // Вертикаль
-            for (int x = 0; x < Width; x++)
-            {
-                byte shape_found = 0;
-
-                int y1 = 0;
-                int y2 = 0;
-
-                // Скан снизу
-                for (int y = 0; y < Height; y++)
-                {
-                    if (bitmap[x, y].R == 255 || bitmap[x, y].G == 255)
-                    {
-                        shape_found += 1;
-                        y1 = y;
-                        break;
-                    }
-                }
-
-                // Скан сверху
-                for (int y = Height - 1; y >= 0; y--)
-                {
-                    if (bitmap[x, y].R == 255 || bitmap[x, y].G == 255)
-                    {
-                        shape_found += 1;
-                        y2 = y;
-                        break;
-                    }
-                }
-
-                if (shape_found == 0)
-                {
-                    if (y1_prev != 0 && y2_prev != 0)
-                    {
-                        foreach (var p in GraphicsMath.GetLinePoints((x, y1_prev), (x, y2_prev)))
-                        {
-                            bitmap[p.x, p.y] = ShapeColor;
-                        }
-                        break;
-                    }
-                    continue;
-                }
-
-                // Нижний и верхний уровени
-                if (x == 0 || x == Width - 1 || (y1_prev == 0 && y2_prev == 0))
-                {
-                    foreach (var p in GraphicsMath.GetLinePoints((x, y1), (x, y2)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-                }
-
-                //Обычная грань
-                else
-                {
-                    for (int y_i = y1; y_i <= y2; y_i++)
-                    {
-                        bitmap[x, y_i] = FillerColor;
-                    }
-
-                    foreach (var p in GraphicsMath.GetLinePoints((x - 1, y1_prev), (x, y1)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-
-                    foreach (var p in GraphicsMath.GetLinePoints((x - 1, y2_prev), (x, y2)))
-                    {
-                        bitmap[p.x, p.y] = ShapeColor;
-                    }
-                }
-
-                y1_prev = y1;
-                y2_prev = y2;
-            }
-
-            bitmap.UnlockBitmap();
-            Stroke result = new Stroke(bitmap.GetBitmap())
-            {
-                SP = this.SP,
-                PivotPoint = this.PivotPoint
-            };
-            return result;
+            return (xnew, ynew);
         }
 
         public (HashSet<(int x, int y)> coordinates, double dispersion) GetBitmapCoordinates(ArtBitmap bitmap, (int x, int y) globalPoint, Color strokeColor)

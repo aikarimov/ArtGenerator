@@ -109,13 +109,13 @@ namespace ArtModel.Core
         public static readonly ArtUserInput Default = new ArtUserInput()
         {
             Generations = 7,
-            Segments = 1,
+            Segments = 2,
 
             StrokeWidth_Min = 8,
             StrokeWidth_Max = 80,
 
-            StrokeLength_Min = 2,
-            StrokeLength_Max = 60,
+            StrokeLength_Min = 3,
+            StrokeLength_Max = 150,
 
             BlurSigma_Min = 8,
             BlurSigma_Max = 40,

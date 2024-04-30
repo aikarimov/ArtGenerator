@@ -49,14 +49,6 @@ namespace ArtModel.MathLib
                 Math.Clamp((int)(a * front.B + (1 - a) * back.B), 0, 255));
         }
 
-        public static double ColorEuclideanDistance(in Color color1, in Color color2)
-        {
-            double R_sq = Math.Pow(color1.R - color2.R, 2);
-            double G_sq = Math.Pow(color1.G - color2.G, 2);
-            double B_sq = Math.Pow(color1.B - color2.B, 2);
-            return Math.Sqrt(R_sq + G_sq + B_sq);
-        }
-
         public static double CalculateSquaredEuclideanDistance(in Color color1, in Color color2)
         {
             double R_sq = Math.Pow(color1.R - color2.R, 2);

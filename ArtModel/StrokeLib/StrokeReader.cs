@@ -1,13 +1,14 @@
 ﻿using System.Drawing;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ArtModel.StrokeLib
 {
     public class StrokeReader
     {
-        public static Bitmap ReadStrokeCropped(Bitmap original)
+        public static Bitmap ReadStrokeCropped(Bitmap original, bool strokeOrNormal)
         {
-            ConvertToGrayScale(ref original);
-            return CropImage(original, GetContentRectangle(original));
+            if (strokeOrNormal) ConvertToGrayScale(ref original);
+            return CropImage(original, GetContentRectangle(original, strokeOrNormal));
         }
 
         private static void ConvertToGrayScale(ref Bitmap original)
@@ -24,18 +25,18 @@ namespace ArtModel.StrokeLib
             }
         }
 
-        private static Rectangle GetContentRectangle(Bitmap image)
+        private static Rectangle GetContentRectangle(Bitmap image, bool strokeOrNormal)
         {
             int left = 0, top = 0, right = image.Width - 1, bottom = image.Height - 1;
-            int blackBorder = Stroke.BLACK_BORDER_MEDIUM;
+
+            Func<Color, bool> borderCheck = strokeOrNormal ? (col) => { return col.R < Stroke.BLACK_BORDER_MEDIUM; } : (col) => { return col.R != 128; };
 
             // Находим левый край
             for (int x = 0; x < image.Width; x++)
             {
                 for (int y = 0; y < image.Height; y++)
                 {
-                    Color col = image.GetPixel(x, y);
-                    if (col.R < blackBorder)
+                    if (borderCheck(image.GetPixel(x, y)))
                     {
                         left = x;
                         break;
@@ -50,7 +51,7 @@ namespace ArtModel.StrokeLib
             {
                 for (int x = left; x < image.Width; x++)
                 {
-                    if (image.GetPixel(x, y).R < blackBorder)
+                    if (borderCheck(image.GetPixel(x, y)))
                     {
                         top = y;
                         break;
@@ -65,7 +66,7 @@ namespace ArtModel.StrokeLib
             {
                 for (int y = top; y < image.Height; y++)
                 {
-                    if (image.GetPixel(x, y).R < blackBorder)
+                    if (borderCheck(image.GetPixel(x, y)))
                     {
                         right = x;
                         break;
@@ -80,7 +81,7 @@ namespace ArtModel.StrokeLib
             {
                 for (int x = left; x <= right; x++)
                 {
-                    if (image.GetPixel(x, y).R < blackBorder)
+                    if (borderCheck(image.GetPixel(x, y)))
                     {
                         bottom = y;
                         break;

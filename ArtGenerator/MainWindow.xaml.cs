@@ -255,6 +255,15 @@ namespace ArtGenerator
                     shapedata.shapes.Save($"{outPath}\\{ShapesSubFolder}", "Shapes");
                     shapedata.skelet.Save($"{outPath}\\{ShapesSubFolder}", "Skelet");
                 });
+
+                // Отрисовка скелетов/контуров
+                Task.Run(() =>
+                {
+                    var errorMap = tracer.CreateErrorMap();
+                    errorMap.bitmap.Save($"{outPath}\\{ShapesSubFolder}", "Error");
+                    var path = Path.Combine(outPath, ShapesSubFolder, $"errorData.txt");
+                    File.WriteAllText(path, errorMap.dispersion.ToString());
+                });
             }); 
         }
 
