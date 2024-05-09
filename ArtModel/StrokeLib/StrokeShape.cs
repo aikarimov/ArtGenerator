@@ -1,6 +1,7 @@
 ﻿using ArtModel.Core;
 using ArtModel.ImageProccessing;
 using ArtModel.MathLib;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace ArtModel.StrokeLib
@@ -17,7 +18,7 @@ namespace ArtModel.StrokeLib
         private int Width;
         private int Height;
 
-        private Bitmap bitmap;
+        private HashSet<(int x, int y)> Contour;
 
         public StrokeShape(Stroke stroke)
         {
@@ -25,6 +26,7 @@ namespace ArtModel.StrokeLib
             Width = stroke.Width;
             Height = stroke.Height;
             edge = new StrokeEdge();
+            Contour = new();
         }
 
         public Stroke GetShape()
@@ -32,7 +34,7 @@ namespace ArtModel.StrokeLib
             return shape;
         }
 
-        public new void Rotate(double rotationAngle, Color fillColor)
+        public void Rotate(double rotationAngle, Color fillColor)
         {
             double relAngle = rotationAngle - Math.PI / 2;
             double cosA = Math.Abs(Math.Cos(relAngle));
@@ -40,25 +42,34 @@ namespace ArtModel.StrokeLib
             int newWidth = (int)(cosA * Width + sinA * Height);
             int newHeight = (int)(cosA * Height + sinA * Width);
 
-            var rotatedSet = new HashSet<(int x, int y)>();
-
             double angle = rotationAngle + 1.5 * Math.PI;
             double sin = Math.Sin(angle);
             double cos = Math.Cos(angle);
 
+            HashSet<(int x, int y)> rotatedEdges = new();
             foreach (var edge in edge.Edges.Values)
             {
-                foreach ((int x, int y) p in edge)
+                for (int i = 0; i < edge.Count - 1; i++)
                 {
-                    (int x, int y) p_offset = (p.x - Width / 2, p.y - Height / 2);
-                    p_offset = RotatePoint(p_offset);
-                    rotatedSet.Add((p_offset.x + newWidth / 2, p_offset.y + newHeight / 2));
+                    var p1 = RotatePoint(edge.ElementAt(i));
+                    var p2 = RotatePoint(edge.ElementAt(i + 1));
+
+                    if (Math.Abs(p1.x - p2.x) > 1 || Math.Abs(p1.y - p2.y) > 1)
+                    {
+                        foreach (var p in GraphicsMath.GetLinePoints(p1, p2))
+                        {
+                            rotatedEdges.Add(p);
+                        }
+                    }
+                    rotatedEdges.Add(p1);
+                    rotatedEdges.Add(p2);
                 }
             }
 
             shape.UnlockBitmap();
             var sourceBitmap = shape.GetBitmap();
-            ArtBitmap rotatedBitmap = new ArtBitmap(newWidth, newHeight);
+
+            var rotatedBitmap = new ArtBitmap(newWidth, newHeight);
             rotatedBitmap.UnlockBitmap();
             rotatedBitmap.GetBitmap().SetResolution(sourceBitmap.HorizontalResolution, sourceBitmap.VerticalResolution);
 
@@ -77,28 +88,22 @@ namespace ArtModel.StrokeLib
 
             sourceBitmap.Dispose();
 
-            ArtBitmap newMap = new ArtBitmap(newWidth, newHeight);
-            newMap.FillColor(Color.Black);
-
             shape = new Stroke(rotatedBitmap.GetBitmap());
 
             Width = newWidth;
             Height = newHeight;
 
-            foreach (var p in rotatedSet)
+            foreach (var p in rotatedEdges)
             {
                 shape[p.x, p.y] = Color.Red;
             }
 
-            //shape.LockBitmap();
-
-
-            (int x, int y) RotatePoint(in (int x, int y) point)
+            (int x, int y) RotatePoint((int x, int y) p)
             {
-                int xnew = (int)(point.x * cos - point.y * sin);
-                int ynew = (int)(point.x * sin + point.y * cos);
-
-                return (xnew, ynew);
+                p = (p.x - Width / 2, p.y - Height / 2);
+                int xnew = (int)(p.x * cos - p.y * sin);
+                int ynew = (int)(p.x * sin + p.y * cos);
+                return (xnew + newWidth / 2, ynew + newHeight / 2);
             }
         }
 
@@ -237,7 +242,6 @@ namespace ArtModel.StrokeLib
                         foreach (var p in GraphicsMath.GetLinePoints((x, y1_prev), (x, y2_prev)))
                         {
                             edge.Edges[StrokeEdge.Edge.Right].Add(p);
-                           // bitmap[p.x, p.y] = Color.Red;
                         }
                         break;
                     }
@@ -249,8 +253,7 @@ namespace ArtModel.StrokeLib
                 {
                     foreach (var p in GraphicsMath.GetLinePoints((x, y1), (x, y2)))
                     {
-                        edge.Edges[StrokeEdge.Edge.Left].Add(p);
-                       // bitmap[p.x, p.y] = Color.Red;
+                        edge.Edges[StrokeEdge.Edge.Left].Add(p);;
                     }
                 }
 
@@ -261,7 +264,6 @@ namespace ArtModel.StrokeLib
                     foreach (var p in GraphicsMath.GetLinePoints((x, y1), (x, y2)))
                     {
                         edge.Edges[StrokeEdge.Edge.Right].Add(p);
-                        //bitmap[p.x, p.y] = Color.Red;
                     }
                 }
 
@@ -279,13 +281,11 @@ namespace ArtModel.StrokeLib
                     foreach (var p in GraphicsMath.GetLinePoints((x - 1, y1_prev), (x, y1)))
                     {
                         edge.Edges[StrokeEdge.Edge.Bottom].Add(p);
-                        //bitmap[p.x, p.y] = Color.Red;
                     }
 
                     foreach (var p in GraphicsMath.GetLinePoints((x - 1, y2_prev), (x, y2)))
                     {
                         edge.Edges[StrokeEdge.Edge.Top].Add(p);
-                        //bitmap[p.x, p.y] = Color.Red;
                     }
                 }
 
@@ -295,8 +295,6 @@ namespace ArtModel.StrokeLib
 
             artBitmap.UnlockBitmap();
             shape = new Stroke(artBitmap.GetBitmap());
-            //sourceStroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", "source");
-            //shape.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", "shape2");
         }
     }
 }

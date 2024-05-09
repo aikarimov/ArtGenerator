@@ -100,7 +100,6 @@ namespace ArtModel.Tracing
                 double[,] blurredBrightnessMap = GaussianBlur.ApplyBlurToBrightnessMap(BrightnessMap.GetBrightnessMap(blurredOriginalMap), localData.BlurSigma);
                 (int x, int y) coordinates;
 
-                if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.SetGenerationContext(gen, localData); }
                 NotifyStatusChange?.Invoke($"{TracingState.Tracing} | Поколение: {gen}");
 
                 switch (gen)
@@ -125,7 +124,7 @@ namespace ArtModel.Tracing
                     // Отрисовка обычных слоёв
                     default:
                         (int w, int h) tileData = (localData.StrokeWidth_Max, localData.StrokeWidth_Max);
-                        decider = new WeightedRegionPointDecider(_originalModel, _artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
+                        decider = new RegionPointDecider(_originalModel, _artificialRender, tileData.w, tileData.h, localData.DispersionTileBound);
 
                         for (int iteration = 0; iteration < localData.Iterations; iteration++)
                         {
@@ -202,12 +201,10 @@ namespace ArtModel.Tracing
                     Task.WaitAll(tasks);
 
                     var finalResult = results.MinBy(r => r.dispersion)!;
-                    finalResult.stroke.Shape.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", $"shapeFINAL");
+                    //finalResult.stroke.Shape.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Shapes", $"shapeFINAL");
 
                         if (finalResult.dispersion > localData.DispersionTileBound)
-                        return;
-
-                    if (ArtStatistics.Instance.CollectStatistics) { ArtStatistics.Instance.AddStroke(finalResult.tracing); }
+                        //return;
 
                     WritePixelsModel(finalResult.tracing.Coordinates, finalResult.tracing.MeanColor, decider);
                     WritePixelsRender(finalResult.stroke, finalResult.tracing, coordinates, decider);
@@ -427,7 +424,7 @@ namespace ArtModel.Tracing
 
             if (ArtStatistics.Instance.ShapesMap)
             {
-                // CanvasShapeGenerator.OpenNewStroke(tracingResult.MeanColor);
+                CanvasShapeGenerator.OpenNewStroke(tracingResult.MeanColor);
                 // CanvasShapeGenerator.AddStrokeSkelet(tracingResult.Path);
             }
 
@@ -452,8 +449,10 @@ namespace ArtModel.Tracing
                         // Запись контура
                         if (ArtStatistics.Instance.ShapesMap)
                         {
-                            //if (stroke.Shape?[x, y].G > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
-                            //if (stroke.Shape?[x, y].R > 0) CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Shape);
+                            if (stroke.Shape?.GetShape()[x, y].G > 0) 
+                                CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Filler);
+                            else if(stroke.Shape?.GetShape()[x, y].R > 0) 
+                                CanvasShapeGenerator.AddPixel((globalX, globalY), ShapeType.Edge);
                         }
                     }
                 }
