@@ -27,23 +27,42 @@ namespace ArtModel.ImageModel.ImageProccessing
                         { 0, 0, 0 },
                         { -1, -2, -1 }};
 
+
         private static double[,] sobelX3 = {
-                 { -0.5 * p1, 0, 0.5 * p1 },
-                 {  p1 - 0.5, 0, 0.5 - p1 },
-                 { -0.5 * p1, 0, 0.5 * p1 }};
+                        { -1, 0, 1 },
+                        { -2, 0, 2 },
+                        { -1, 0, 1 }};
         private static double[,] sobelY3 = {
-                 { -0.5 * p1, p1 - 0.5, -0.5 * p1 },
-                 {         0,        0,         0 },
-                 {  0.5 * p1, 0.5 - p1,  0.5 * p1 }};
+                        { 1, 2, 1 },
+                        { 0, 0, 0 },
+                        { -1, -2, -1 }};
 
-        public static double[,] GetBrightnessMap(ArtBitmap origBm)
+        public static double[,] GetBrightnessMap(ArtBitmap origBm, int brushRadius)
         {
-            //ArtBitmap artBitmap = new ArtBitmap(origBm.Width, origBm.Height);
+            ArtBitmap artBitmapEdge = new ArtBitmap(origBm.Width, origBm.Height);
+            ArtBitmap artBitmapGray = new ArtBitmap(origBm.Width, origBm.Height);
 
-            byte[,] gray = ImageFiltering.ToGrayScale(origBm);
+            double[,] gray = ImageFiltering.ToGrayScale(origBm);
 
-            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX3);
-            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY3);
+            for (int x = 0; x < origBm.Width; x++)
+            {
+                for (int y = 0; y < origBm.Height; y++)
+                {
+                    int grayPixel = (int)Math.Round(gray[y, x]);
+
+                    artBitmapGray[x, y] = Color.FromArgb(255, grayPixel, grayPixel, grayPixel);
+                }
+            }
+
+            //artBitmapGray.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "GrayImage");
+
+            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX);
+            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY);
+
+            double[,] edges = new double[origBm.Height, origBm.Width];
+            var averagingFilter = GetAveragingFilter(brushRadius);
+            dx = ImageFiltering.ApplyConvolution(dx, averagingFilter);
+            dy = ImageFiltering.ApplyConvolution(dy, averagingFilter);
 
             double[,] result = new double[origBm.Height, origBm.Width];
 
@@ -51,17 +70,61 @@ namespace ArtModel.ImageModel.ImageProccessing
             {
                 for (int y = 0; y < origBm.Height; y++)
                 {
-                    double angle = Math.Atan2(dy[y, x], dx[y, x]);
-                    result[y, x] = /*Math.Roun d(angle, 5)*/ angle;
-
-                    //double afr =(angle + Math.PI) / Math.Tau;
-                    //byte col = (byte)(Math.Clamp(afr * 255, 0, 255));
-                    //artBitmap[x, y] = Color.FromArgb(col, col, col);
+                    edges[y, x] = Math.Sqrt(Math.Pow(dy[y, x], 2) + Math.Pow(dx[y, x], 2));
+                    result[y, x] = Math.Atan2(dy[y, x], dx[y, x]);
                 }
             }
 
-           // artBitmap.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "BrightnessMap.png");
+            double edge_max = double.MinValue;
+            double edge_min = double.MaxValue;
+
+
+            for (int x = 0; x < origBm.Width; x++)
+            {
+                for (int y = 0; y < origBm.Height; y++)
+                {
+
+                    var edge = edges[y, x];
+                    if (edge > edge_max)
+                        edge_max = edge;
+
+                    if (edge < edge_min)
+                        edge_min = edge;
+                }
+            }
+
+            for (int x = 0; x < origBm.Width; x++)
+            {
+                for (int y = 0; y < origBm.Height; y++)
+                {
+                    double edge = edges[y, x];
+                    double af3 = (edge - edge_min) / (edge_max - edge_min);
+                    int col3 = (int)(Math.Round(af3 * 255.0));
+                    artBitmapEdge[x, y] = Color.FromArgb(255, col3, col3, col3);
+                }
+            }
+
+            //artBitmapEdge.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "artBitmapEdge");
+
             return result;
+        }
+
+        private static double[,] GetAveragingFilter(int brushRadius)
+        {
+            int m = 4 * brushRadius;
+            if (m % 2 == 0)
+                m++;
+
+            double[,] filter = new double[m, m];
+            for (int i = 0; i < m; i++)
+            {
+                for (int j = 0; j < m; j++)
+                {
+                    filter[i, j] = 1.0 / (m * m);
+                }
+            }
+
+            return filter;
         }
     }
 }

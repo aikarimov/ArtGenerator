@@ -60,8 +60,8 @@ namespace ArtModel.Core
                 aGen.StrokeWidth_Max = (int)(inputData.StrokeWidth_Min + stroke_width_interval * factor_up);
 
                 // Длина мазка
-                aGen.StrokeLength_Min = inputData.StrokeLength_Min;
-                aGen.StrokeLength_Max = inputData.StrokeLength_Max;
+                int stroke_length_interval = inputData.StrokeLength_Max - inputData.StrokeLength_Min;
+                aGen.StrokeLength_Max = (int)(inputData.StrokeLength_Min + stroke_length_interval * factor_norm);
 
                 // Блюр
                 int blur_interval = inputData.BlurSigma_Max - inputData.BlurSigma_Min;
@@ -94,7 +94,6 @@ namespace ArtModel.Core
         public int StrokeWidth_Min { get; set; }
         public int StrokeWidth_Max { get; set; }
 
-        public int StrokeLength_Min { get; set; }
         public int StrokeLength_Max { get; set; }
 
         public int BlurSigma { get; set; }
@@ -112,16 +111,16 @@ namespace ArtModel.Core
             Segments = 2,
 
             StrokeWidth_Min = 8,
-            StrokeWidth_Max = 80,
+            StrokeWidth_Max = 70,
 
-            StrokeLength_Min = 3,
-            StrokeLength_Max = 150,
+            StrokeLength_Min = 30,
+            StrokeLength_Max = 80,
 
-            BlurSigma_Min = 8,
-            BlurSigma_Max = 40,
+            BlurSigma_Min = 4,
+            BlurSigma_Max = 30,
 
-            Dispersion_Stroke_Min = 100,
-            Dispersion_Stroke_Max = 700,
+            Dispersion_Stroke_Min = 200,
+            Dispersion_Stroke_Max = 900,
 
             Dispersion_Tile_Min = 5000,
             Dispersion_Tile_Max = 20000,

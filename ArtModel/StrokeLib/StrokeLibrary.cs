@@ -1,7 +1,7 @@
 ﻿using ArtModel.Core;
 using ArtModel.Tracing;
 using System.Drawing;
-using System.Reflection;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
 namespace ArtModel.StrokeLib
@@ -28,7 +28,7 @@ namespace ArtModel.StrokeLib
 
         public double Normalize(double value)
         {
-            return (value - MinValue) / Interval;
+            return Math.Clamp((value - MinValue) / Interval, 0, 1);
         }
     }
 
@@ -64,8 +64,10 @@ namespace ArtModel.StrokeLib
         public static double mm_tp_px_coef = 8.6;
         private string sourceLibraryPath;
 
-        private StrokePropertyNormalizator _normaliztor;
         private Dictionary<int, List<Stroke>> _strokesData;
+        private Dictionary<int, StrokePropertyNormalizator> _normalizators;
+
+        private object locker = new object();
 
         public StrokeLibrary(string libFolder, ArtModelSerializer serializer, double resizeCoefficient = 1)
         {
@@ -79,44 +81,70 @@ namespace ArtModel.StrokeLib
                     { 3, new List<Stroke>() }
                 };
 
-            _normaliztor = new StrokePropertyNormalizator();
-            InitNormalizator(_normaliztor, serializer);
+            _normalizators = new()
+                {
+                    { 1, new StrokePropertyNormalizator() },
+                    { 2, new StrokePropertyNormalizator() },
+                    { 3, new StrokePropertyNormalizator() }
+                };
 
+            InitNormalizator(serializer);
             StrokeLibraryReader.ReadAllStrokes(sourceLibraryPath, _strokesData, resizeCoefficient);
         }
 
-        private void InitNormalizator(StrokePropertyNormalizator normaliztor, ArtModelSerializer serializer)
+        private void InitNormalizator(ArtModelSerializer serializer)
         {
             var input = serializer.UserInput;
 
-            normaliztor.AddP(StrokeProperty.Width, 1 * 8.6);
-            normaliztor.AddP(StrokeProperty.Width, 6 * 8.6);
+            // Мазки с разными сегментами имеют разные параметры нормализации и разные границы в библиотеке
 
-            normaliztor.AddP(StrokeProperty.Angle1, 90);
-            normaliztor.AddP(StrokeProperty.Angle1, 180);
+            // 2 точки
+            _normalizators[2].AddP(StrokeProperty.Width, 1 * mm_tp_px_coef);
+            _normalizators[2].AddP(StrokeProperty.Width, 9 * mm_tp_px_coef);
 
-            normaliztor.AddP(StrokeProperty.Fraction, 0); // Первый сегмент почти 0
-            normaliztor.AddP(StrokeProperty.Fraction, 100); // Первый сегмент почти весь мазок
+            _normalizators[2].AddP(StrokeProperty.LtoW, input.StrokeLength_Max / input.StrokeWidth_Min);
+            _normalizators[2].AddP(StrokeProperty.LtoW, input.StrokeLength_Min / input.StrokeWidth_Max);
 
-            normaliztor.AddP(StrokeProperty.LtoW, input.StrokeLength_Max / input.StrokeWidth_Min);
-            normaliztor.AddP(StrokeProperty.LtoW, input.StrokeLength_Min / input.StrokeWidth_Max);
+            // 3 точки
+            _normalizators[3].AddP(StrokeProperty.Width, 1 * mm_tp_px_coef);
+            _normalizators[3].AddP(StrokeProperty.Width, 6 * mm_tp_px_coef);
+
+            _normalizators[3].AddP(StrokeProperty.Angle1, 90);
+            _normalizators[3].AddP(StrokeProperty.Angle1, 180);
+
+            _normalizators[3].AddP(StrokeProperty.Fraction, 0); // Первый сегмент почти 0
+            _normalizators[3].AddP(StrokeProperty.Fraction, 100); // Первый сегмент почти весь мазок
+
+            _normalizators[3].AddP(StrokeProperty.LtoW, input.StrokeLength_Max / input.StrokeWidth_Min);
+            _normalizators[3].AddP(StrokeProperty.LtoW, input.StrokeLength_Min / input.StrokeWidth_Max);
         }
 
         public Stroke ClassifyStroke(TracingResult targetStroke, ArtGeneration genData)
         {
-            double points = targetStroke.SP.GetP(StrokeProperty.Points);
-
-            switch (points)
+            lock (locker)
             {
-                case 1:
-                    return ClassifyPt1(targetStroke).Copy();
-                case 2:
-                    return ClassifyPt2(targetStroke).Copy();
-                case 3:
-                    return ClassifyPt3(targetStroke).Copy();
-                default:
-                    goto case 1;
+                double points = targetStroke.SP.GetP(StrokeProperty.Points);
+
+                Stroke result;
+
+                switch (points)
+                {
+                    case 1:
+                        result = ClassifyPt1(targetStroke);
+                        break;
+                    case 2:
+                        result = ClassifyPt2(targetStroke);
+                        break;
+                    case 3:
+                        result = ClassifyPt3(targetStroke);
+                        break;
+                    default:
+                        goto case 1;
+                }
+
+                return result;
             }
+            
         }
 
         private Stroke ClassifyPt1(TracingResult targetStroke)
@@ -124,34 +152,41 @@ namespace ArtModel.StrokeLib
             double width = targetStroke.SP.GetP(StrokeProperty.Width);
 
             return _strokesData[1]
-                .MinBy(sourceStroke => Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Width) - width))!
-                .Copy();
+                .MinBy(sourceStroke => Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Width) - width))!.Copy();
         }
 
         private Stroke ClassifyPt2(TracingResult targetStroke)
         {
+            double target_ltow = _normalizators[2].Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
+            double target_width = _normalizators[2].Normalize(StrokeProperty.Width, targetStroke.SP.GetP(StrokeProperty.Width));
+
             return _strokesData[2]
                .MinBy(sourceStroke =>
                    {
-                       return Math.Abs(targetStroke.SP.GetP(StrokeProperty.LtoW) - sourceStroke.SP.GetP(StrokeProperty.LtoW));
-                   })!
-               .Copy();
+                       double source_ltow = _normalizators[2].Normalize(StrokeProperty.LtoW, sourceStroke.SP.GetP(StrokeProperty.LtoW));
+                       double source_width = _normalizators[3].Normalize(StrokeProperty.Width, sourceStroke.SP.GetP(StrokeProperty.Width));
+
+                       double df_ltow = Math.Abs(target_ltow - source_ltow);
+                       double df_width = Math.Abs(target_width - source_width);
+
+                       return Math.Sqrt(Math.Pow(df_ltow, 2) + 0.33 * Math.Pow(df_width, 2));
+                   })!.Copy();
         }
 
         private Stroke ClassifyPt3(TracingResult targetStroke)
         {
-            double target_ltow = _normaliztor.Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
-            double target_angle = _normaliztor.Normalize(StrokeProperty.Angle1, Math.Abs(targetStroke.SP.GetP(StrokeProperty.Angle1)));
-            double target_fraction = _normaliztor.Normalize(StrokeProperty.Fraction, targetStroke.SP.GetP(StrokeProperty.Fraction));
-            double target_width = _normaliztor.Normalize(StrokeProperty.Width, targetStroke.SP.GetP(StrokeProperty.Width));
+            double target_ltow = _normalizators[3].Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
+            double target_angle = _normalizators[3].Normalize(StrokeProperty.Angle1, Math.Abs(targetStroke.SP.GetP(StrokeProperty.Angle1)));
+            double target_fraction = _normalizators[3].Normalize(StrokeProperty.Fraction, targetStroke.SP.GetP(StrokeProperty.Fraction));
+            double target_width = _normalizators[3].Normalize(StrokeProperty.Width, targetStroke.SP.GetP(StrokeProperty.Width));
 
             Stroke result = _strokesData[3]
                .MinBy(sourceStroke =>
                {
-                   double source_ltow = _normaliztor.Normalize(StrokeProperty.LtoW, sourceStroke.SP.GetP(StrokeProperty.LtoW));
-                   double source_angle = _normaliztor.Normalize(StrokeProperty.Angle1, sourceStroke.SP.GetP(StrokeProperty.Angle1));
-                   double source_fraction = _normaliztor.Normalize(StrokeProperty.Fraction, sourceStroke.SP.GetP(StrokeProperty.Fraction));
-                   double source_width = _normaliztor.Normalize(StrokeProperty.Width, sourceStroke.SP.GetP(StrokeProperty.Width));
+                   double source_ltow = _normalizators[3].Normalize(StrokeProperty.LtoW, sourceStroke.SP.GetP(StrokeProperty.LtoW));
+                   double source_angle = _normalizators[3].Normalize(StrokeProperty.Angle1, sourceStroke.SP.GetP(StrokeProperty.Angle1));
+                   double source_fraction = _normalizators[3].Normalize(StrokeProperty.Fraction, sourceStroke.SP.GetP(StrokeProperty.Fraction));
+                   double source_width = _normalizators[3].Normalize(StrokeProperty.Width, sourceStroke.SP.GetP(StrokeProperty.Width));
 
                    double df_ltow = Math.Abs(target_ltow - source_ltow);
                    double df_angle = Math.Abs(target_angle - source_angle);
@@ -162,19 +197,19 @@ namespace ArtModel.StrokeLib
                        Math.Pow(df_ltow, 2) +
                        Math.Pow(df_angle, 2) +
                        Math.Pow(df_fraction, 2) +
-                       0.33 * Math.Pow(df_width, 2));
-               })!
-               .Copy();
+                       0.33 * Math.Pow(df_width, 2)); // Весовой коэффициенит для учёта реальных размеров
+               })!.Copy();
 
-            double a1 = targetStroke.SP.GetP(StrokeProperty.Angle1);
-            double a2 = result.SP.GetP(StrokeProperty.Angle1);
-
+            // Отзеркаливание мазка, если углы не совпадают
             try
             {
-                if (/*a1 != double.NaN && a2 != double.NaN && */(Math.Sign(a1) != Math.Sign(a2)))
+                double a1 = targetStroke.SP.GetP(StrokeProperty.Angle1);
+                double a2 = result.SP.GetP(StrokeProperty.Angle1);
+
+                if (Math.Sign(a1) != Math.Sign(a2))
                 {
                     result.Flip(RotateFlipType.RotateNoneFlipX);
-                    result.NormalMap.Flip(RotateFlipType.RotateNoneFlipX);
+                    result.NormalMap?.Flip(RotateFlipType.RotateNoneFlipX);
                 }
             }
             catch { }
@@ -204,13 +239,14 @@ namespace ArtModel.StrokeLib
     {
         public static void ReadAllStrokes(string rootPath, Dictionary<int, List<Stroke>> data, double resizeCoef = 1.0)
         {
-            Parallel.ForEach(Directory.GetFiles(rootPath, "*.png", SearchOption.AllDirectories), filePath =>
+            Parallel.ForEach(Directory.GetFiles(rootPath, "*.*", SearchOption.AllDirectories), filePath =>
             {
-                // игонрируем карты нормалей и контуры
-                if (filePath.EndsWith("n.png")) return;
+                // игонрируем карты нормалей
+                if (filePath.EndsWith("n.png") || filePath.EndsWith("n.jpg")) return;
 
                 string fileName = filePath;
-                string fileNameNormal = fileName.Insert(filePath.IndexOf('.'), "n");
+                string fileNameNoFormat = fileName.Remove(filePath.Length - 4); // Убираем формат
+                string fileNameNormal = $"{fileNameNoFormat}n.png";
 
                 Stroke mask;
                 int points;
@@ -231,14 +267,18 @@ namespace ArtModel.StrokeLib
                     points = (int)mask.SP.GetP(StrokeProperty.Points);
                 }
 
-                // Нормаль мазка
-                using (FileStream fileStream = new FileStream(fileNameNormal, FileMode.Open, FileAccess.Read))
+                // Нормаль мазка. Если она не найдена, то будет null в свойстве stroke
+                try
                 {
-                    Stroke normal = new Stroke(StrokeReader.ReadStrokeCropped((Bitmap)Image.FromStream(fileStream), false));
-                    normal.Resize(resizeCoef);
+                    using (FileStream fileStream = new FileStream(fileNameNormal, FileMode.Open, FileAccess.Read))
+                    {
+                        Stroke normal = new Stroke(StrokeReader.ReadStrokeCropped((Bitmap)Image.FromStream(fileStream), false));
+                        normal.Resize(resizeCoef);
 
-                    mask.NormalMap = normal;
+                        mask.NormalMap = normal;
+                    }
                 }
+                catch { }
 
                 data[points].Add(mask);
             });
@@ -256,7 +296,7 @@ namespace ArtModel.StrokeLib
                 collection.SetP(StrokeProperty.Length, length);
 
                 collection.SetP(StrokeProperty.LtoW, length / width);
-                
+
                 double angle = collection.GetP(StrokeProperty.Angle1);
                 collection.SetP(StrokeProperty.Angle1, 180 - angle);
             }
@@ -301,5 +341,4 @@ namespace ArtModel.StrokeLib
             return attributes;
         }
     }
-
 }

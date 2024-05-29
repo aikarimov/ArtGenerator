@@ -39,11 +39,11 @@ namespace ArtModel.Tracing.PathTracing
             double angle = Math.Atan2(vector.y, vector.x);
 
             // 1-3 линия, 2-4 линия
-            var p1 = VectorMath.PointOffset(pointStart, angle + Math.PI / 2, radius);
-            var p2 = VectorMath.PointOffset(pointStart, angle - Math.PI / 2, radius);
-            var p3 = VectorMath.PointOffset(pointEnd, angle + Math.PI / 2, radius);
-            var p4 = VectorMath.PointOffset(pointEnd, angle - Math.PI / 2, radius);
-            (int x, int y)[] points = [p1, p3, p4, p2]; // Порядок, чтобы шли по кругу
+            var p1 = VectorMath.PointOffsetF(pointStart, angle + Math.PI / 2, radius);
+            var p2 = VectorMath.PointOffsetF(pointStart, angle - Math.PI / 2, radius);
+            var p3 = VectorMath.PointOffsetF(pointEnd, angle + Math.PI / 2, radius);
+            var p4 = VectorMath.PointOffsetF(pointEnd, angle - Math.PI / 2, radius);
+            (float x, float y)[] points = [p1, p3, p4, p2]; // Порядок, чтобы шли по кругу
 
             IShape rect = new RectangleShape(points);
 
@@ -99,13 +99,13 @@ namespace ArtModel.Tracing.PathTracing
             }
         }
 
-        private static ((int x, int y) leftBottom, (int x, int y) rightTop) GetOuterRectangle(in (int x, int y)[] points)
+        private static ((int x, int y) leftBottom, (int x, int y) rightTop) GetOuterRectangle(in (float x, float y)[] points)
         {
-            int minX = points.Min(point => point.x);
-            int maxX = points.Max(point => point.x);
+            int minX = (int)points.Min(point => point.x);
+            int maxX = (int)points.Max(point => point.x);
 
-            int minY = points.Min(point => point.y);
-            int maxY = points.Max(point => point.y);
+            int minY = (int)points.Min(point => point.y);
+            int maxY = (int)points.Max(point => point.y);
 
             return ((minX, minY), (maxX, maxY));
         }

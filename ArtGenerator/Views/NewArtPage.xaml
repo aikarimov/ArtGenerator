@@ -38,5 +38,6 @@
         <Label Content="MIN" Margin="319,323,0,495" FontSize="24" HorizontalAlignment="Left"/>
         <Label Content="Дисперсия мазка" Margin="10,531,404,287" FontSize="24"/>
         <Label Content="MAX" Margin="492,323,0,495" FontSize="24" HorizontalAlignment="Left"/>
+        <Button x:Name="button_save_changes" Content="Сохранить изменения" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="60" Width="268" FontSize="24" Click="button_save_changes_click" Margin="10,0,0,131"/>
     </Grid>
 </Page>

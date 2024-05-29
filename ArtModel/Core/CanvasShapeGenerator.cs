@@ -4,6 +4,7 @@ using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Xml.XPath;
 
@@ -151,9 +152,6 @@ namespace ArtModel.Core
             ArtBitmap shapesBm = new ArtBitmap(_width, _height);
             shapesBm.FillColor(Color.White);
 
-            ArtBitmap skeletBm = new ArtBitmap(_width, _height);
-            skeletBm.FillColor(Color.White);
-
             for (int y = 0; y < _height; y++)
             {
                 for (int x = 0; x < _width; x++)
@@ -172,6 +170,25 @@ namespace ArtModel.Core
                         {
                             shapesBm[x, y] = Color.White;
                         }
+                    }
+                }
+            }
+
+            ArtBitmap skeletBm = new ArtBitmap(_width, _height);
+            skeletBm.FillColor(Color.White);
+
+            foreach (var shape in _shapes)
+            {
+                var points = shape.Value.PathPoints;
+
+                for (int i = 1; i < points.Count; i++)
+                {
+                    var p1 = points[i];
+                    var p2 = points[i + 1];
+
+                    foreach (var p in GraphicsMath.GetLinePoints(p1, p2))
+                    {
+                        skeletBm[p.x, p.y] = shape.Value.ShapeColor;
                     }
                 }
             }

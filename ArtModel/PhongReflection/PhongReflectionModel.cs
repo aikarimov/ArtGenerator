@@ -1,4 +1,4 @@
-﻿using ArtModel.MathLib;
+﻿ using ArtModel.MathLib;
 using ArtModel.StrokeLib;
 using System.Drawing;
 
@@ -33,7 +33,7 @@ namespace ArtModel.PhongReflection
         // Средний цвет, после которого стоит применять модель Фонга
         public static double BorderColorBrightness = (200 + 200 + 200) / 3;
 
-        public static Stroke ApplyReflection    (Stroke stroke, Stroke normalsMap, PhongReflectionParameters parameters)
+        public static Stroke ApplyReflection(Stroke stroke, Stroke normalsMap, PhongReflectionParameters parameters)
         {
             Stroke reflectionStroke = new Stroke(new Bitmap(stroke.Width, stroke.Height));
             reflectionStroke.SP = stroke.SP;

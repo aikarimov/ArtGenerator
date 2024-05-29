@@ -9,10 +9,10 @@ namespace ArtModel.Tracing.PathTracing.Shapes
 {
     public class RectangleShape : IShape
     {
-        private List<Func<(int x, int y), bool>> _constraints = new();
+        private List<Func<(float x, float y), bool>> _constraints = new();
 
         // Линии: 0-1 1-2 2-3 3-0
-        public RectangleShape((int x, int y)[] points)
+        public RectangleShape((float x, float y)[] points)
         {
             var p1 = points[0];
             var p2 = points[1];
@@ -59,7 +59,7 @@ namespace ArtModel.Tracing.PathTracing.Shapes
         }
 
         // Ограничения - наклонные линии.
-        public static void CalculateLinearConstraints(in (int x, int y)[] points, List<Func<(int x, int y), bool>> constraints)
+        public static void CalculateLinearConstraints(in (float x, float y)[] points, List<Func<(float x, float y), bool>> constraints)
         {
             var p1 = points[0];
             var p2 = points[1];
@@ -93,15 +93,15 @@ namespace ArtModel.Tracing.PathTracing.Shapes
             constraints.Add(p => p.y >= GetLineY(p.x, line3.k, line3.b));
             constraints.Add(p => p.y <= GetLineY(p.x, line4.k, line4.b));
 
-            double GetLineY(in double x, in double k, in double b)
+            double GetLineY(in float x, in float k, in float b)
             {
                 return k * x + b;
             }
 
-            (double k, double b) GetLineCoefs(in (int x, int y) pp1, in (int x, int y) pp2)
+            (float k, float b) GetLineCoefs(in (float x, float y) pp1, in (float x, float y) pp2)
             {
-                double k = (pp2.y - pp1.y) * 1.0 / (pp2.x - pp1.x);
-                double b = pp1.y - k * pp1.x;
+                float k = (pp2.y - pp1.y) * 1.0f / (pp2.x - pp1.x);
+                float b = pp1.y - k * pp1.x;
                 return (k, b);
             }
         }

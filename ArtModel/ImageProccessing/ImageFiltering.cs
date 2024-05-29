@@ -6,18 +6,18 @@ namespace ArtModel.ImageModel.ImageProccessing
 {
     public class ImageFiltering
     {
-        public static double[,] ApplyConvolution(byte[,] core, double[,] kernel)
+        public static double[,] ApplyConvolution(double[,] matrix, double[,] kernel)
         {
-            int rows = core.GetLength(0);
-            int cols = core.GetLength(1);
+            int rows = matrix.GetLength(0);
+            int cols = matrix.GetLength(1);
 
             double[,] result = new double[rows, cols];
 
             int kernelRows = kernel.GetLength(0);
             int kernelColumns = kernel.GetLength(1);
 
-            int halfKernelRows = kernelRows / 2;
-            int halfKernelColumns = kernelColumns / 2;
+            int halfKernelRows = (kernelRows - 1) / 2;
+            int halfKernelColumns = (kernelColumns - 1) / 2;
 
             for (int y = 0; y < rows; y++)
             {
@@ -25,14 +25,15 @@ namespace ArtModel.ImageModel.ImageProccessing
                 {
                     double sum = 0.0;
 
+
                     for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
                         {
-                            int k_y = Math.Clamp(y + m, halfKernelRows, rows - halfKernelRows - 1);
-                            int k_x = Math.Clamp(x + n, halfKernelColumns, cols - halfKernelColumns - 1);
+                            int k_y = Math.Clamp(y + m, 0, rows - 1);
+                            int k_x = Math.Clamp(x + n, 0, cols - 1);
 
-                            sum += core[k_y, k_x] * kernel[m + halfKernelRows, n + halfKernelColumns];
+                            sum += matrix[k_y, k_x] * kernel[m + halfKernelRows, n + halfKernelColumns];
                         }
                     }
 
@@ -43,10 +44,10 @@ namespace ArtModel.ImageModel.ImageProccessing
             return result;
         }
 
-        public static double[,] ApplyConvolutionToAngles(double[,] core, double[,] kernel)
+        public static double[,] ApplyConvolutionToAngles(double[,] matrix, double[,] kernel)
         {
-            int rows = core.GetLength(0);
-            int cols = core.GetLength(1);
+            int rows = matrix.GetLength(0);
+            int cols = matrix.GetLength(1);
 
             double[,] result = new double[rows, cols];
 
@@ -62,24 +63,24 @@ namespace ArtModel.ImageModel.ImageProccessing
                 {
                     double sum = 0.0;
 
-                    double middleAngle = core[
-                        Math.Clamp(y, halfKernelRows, rows - halfKernelRows - 1),
-                        Math.Clamp(x, halfKernelColumns, cols - halfKernelColumns - 1)];
+                    double middleAngle = matrix[y, x];
 
                     for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
                         {
-                            int k_y = Math.Clamp(y + m, halfKernelRows, rows - halfKernelRows - 1);
-                            int k_x = Math.Clamp(x + n, halfKernelColumns, cols - halfKernelColumns - 1);
+                            int k_y = Math.Clamp(y + m, 0, rows - 1);
+                            int k_x = Math.Clamp(x + n, 0, cols - 1);
 
-                            double currentAngle = core[k_y, k_x];
+                            double currentAngle = matrix[k_y, k_x];
 
-                            RecalcQuarter(ref currentAngle, middleAngle);
+                            //RecalcQuarter(ref currentAngle, middleAngle);
 
                             sum += currentAngle * kernel[m + halfKernelRows, n + halfKernelColumns];
                         }
                     }
+
+                    //sum /= Math.Tau;
 
                     result[y, x] = sum;
                 }
@@ -105,10 +106,10 @@ namespace ArtModel.ImageModel.ImageProccessing
             }
         }
 
-        public static ArtBitmap ApplyConvolution(ArtBitmap core, double[,] kernel)
+        public static ArtBitmap ApplyConvolution(ArtBitmap matrix, double[,] kernel)
         {
-            int rows = core.Height;
-            int cols = core.Width;
+            int rows = matrix.Height;
+            int cols = matrix.Width;
 
             ArtBitmap result = new ArtBitmap(cols, rows);
 
@@ -130,11 +131,11 @@ namespace ArtModel.ImageModel.ImageProccessing
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
                         {
-                            int k_y = Math.Clamp(y + m, halfKernelRows, rows - halfKernelRows - 1);
-                            int k_x = Math.Clamp(x + n, halfKernelColumns, cols - halfKernelColumns - 1);
+                            int k_y = Math.Clamp(y + m, 0, rows - 1);
+                            int k_x = Math.Clamp(x + n, 0, cols - 1);
 
                             double kernel_value = kernel[m + halfKernelRows, n + halfKernelColumns];
-                            Color color = core[k_x, k_y];
+                            Color color = matrix[k_x, k_y];
 
                             sum_R += color.R * kernel_value;
                             sum_G += color.G * kernel_value;
@@ -153,19 +154,18 @@ namespace ArtModel.ImageModel.ImageProccessing
             return result;
         }
 
-        public static byte[,] ToGrayScale(ArtBitmap artBitmap)
+        public static double[,] ToGrayScale(ArtBitmap artBitmap)
         {
             int height = artBitmap.Height;
             int width = artBitmap.Width;
-            byte[,] result = new byte[height, width];
+            double[,] result = new double[height, width];
 
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
                 {
                     Color col = artBitmap[x, y];
-                    byte gray = (byte)Math.Clamp(0.2126 * col.R + 0.7152 * col.G + 0.0722 * col.B, 0, 255);
-                    result[y, x] = gray;
+                    result[y, x] = Math.Clamp(0.2126 * col.R + 0.7152 * col.G + 0.0722 * col.B, 0, 255);
                 }
             }
 

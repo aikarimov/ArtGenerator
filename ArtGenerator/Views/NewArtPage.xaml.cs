@@ -59,6 +59,7 @@ namespace ArtGenerator.Views
                 button_pick_style.IsEnabled = true;
                 button_save_style.IsEnabled = true;
                 button_load.IsEnabled = true;
+                button_save_changes.IsEnabled = true;
             };
 
             NotifyImageProccessed = () =>
@@ -130,6 +131,12 @@ namespace ArtGenerator.Views
             ResaveJson();
 
             Process.Start("notepad.exe", _jsonDataFilePath);
+        }
+
+        // Сохранить изменения введённые вручную
+        private void button_save_changes_click(object sender, RoutedEventArgs e)
+        {
+            ResaveJson();
         }
 
         private void ValidateJson(object sender, FileSystemEventArgs e)
@@ -318,6 +325,5 @@ namespace ArtGenerator.Views
             input_tile_dipserion_min.Text = input.Dispersion_Tile_Min.ToString();
             input_tile_dipserion_max.Text = input.Dispersion_Tile_Max.ToString();
         }
-
     }
 }

@@ -11,19 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Views\V0fh9E4s-rE.jpg" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ArtModel\ArtModel.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Resource Include="Views\V0fh9E4s-rE.jpg" />
   </ItemGroup>
 
 </Project>

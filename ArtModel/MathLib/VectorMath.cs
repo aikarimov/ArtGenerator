@@ -14,6 +14,13 @@ namespace ArtModel.MathLib
                 p.y + (int)(length * Math.Sin(angle)));
         }
 
+        public static (float x, float y) PointOffsetF((int x, int y) p, double angle, double length)
+        {
+            return (
+                p.x + (float)(length * Math.Cos(angle)),
+                p.y + (float)(length * Math.Sin(angle)));
+        }
+
         public static (int x, int y) PointOffsetClamp((int x, int y) p, double angle, double length, int clampX, int clampY)
         {
             return (

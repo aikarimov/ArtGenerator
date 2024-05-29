@@ -16,9 +16,9 @@ namespace ArtModel.StrokeLib
 
         private object locker = new object();
 
-        public Stroke NormalMap { get; set; }
+        public Stroke? NormalMap { get; set; }
         public StrokeShape Shape { get; set; }
-        public Stroke PhongModel { get; set; }
+        public Stroke? PhongModel { get; set; }
 
         public Stroke(Bitmap bitmap) : base(bitmap)
         {
@@ -38,15 +38,23 @@ namespace ArtModel.StrokeLib
 
         public new Stroke Copy()
         {
-            lock (locker)
+            // Трай кетч- заглушка, почему-то иногда кидает эксепшены не смотря на lock
+           
+            var clonedBitmap = (Bitmap)bitmap.Clone();
+            return new Stroke(clonedBitmap)
             {
-                return new Stroke((Bitmap)bitmap.Clone())
-                {
-                    SP = SP,
-                    PivotPoint = PivotPoint,
-                    NormalMap = NormalMap
-                };
+                SP = SP,
+                PivotPoint = PivotPoint,
+                NormalMap = NormalMap
+            };
+            try
+            {
+                
             }
+            catch
+            {
+               // return new Stroke(new Bitmap(Width, Height));
+            }            
         }
 
         public void Flip(RotateFlipType flipType)
@@ -114,10 +122,7 @@ namespace ArtModel.StrokeLib
             var originalPivot = CalculatePivotPoint();
             originalPivot = (originalPivot.x - Width / 2, originalPivot.y - Height / 2);
 
-            if (SP.GetP(StrokeProperty.Points) >= 2)
-            {
-                originalPivot = RotatePoint(originalPivot, rotationAngle + 1.5 * Math.PI);
-            }
+            originalPivot = RotatePoint(originalPivot, rotationAngle + 1.5 * Math.PI);
 
             PivotPoint = (originalPivot.x + newWidth / 2, originalPivot.y + newHeight / 2);
 
@@ -144,8 +149,6 @@ namespace ArtModel.StrokeLib
             Width = newWidth;
             Height = newHeight;
             LockBitmap();
-
-            Shape?.Rotate(rotationAngle, Color.Black);
         }
 
         public void InitShape()
@@ -155,37 +158,28 @@ namespace ArtModel.StrokeLib
 
         private (int x, int y) CalculatePivotPoint()
         {
-            StartPointAlign align = SP.GetP(StrokeProperty.Points) == 1 ? StartPointAlign.Center : StartPointAlign.Bottom;
+            int width = Width;
+            int x1 = 0;
+            int x2 = width;
 
-            if (align == StartPointAlign.Center)
+            for (int i = 0; i < width; i++)
             {
-                return (Width / 2, Height / 2);
+                if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
+                {
+                    x1 = i;
+                    break;
+                }
             }
-            else
+
+            for (int i = width - 1; i > 0; i--)
             {
-                int width = Width;
-                int x1 = 0;
-                int x2 = width;
-
-                for (int i = 0; i < width; i++)
+                if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
                 {
-                    if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
-                    {
-                        x1 = i;
-                        break;
-                    }
+                    x2 = i;
+                    break;
                 }
-
-                for (int i = width - 1; i > 0; i--)
-                {
-                    if (this[i, 3].R <= BLACK_BORDER_MEDIUM)
-                    {
-                        x2 = i;
-                        break;
-                    }
-                }
-                return ((x1 + x2) / 2, 0);
             }
+            return ((x1 + x2) / 2, 0);
         }
 
         private (int x, int y) RotatePoint(in (int x, int y) point, in double angle)
@@ -237,11 +231,5 @@ namespace ArtModel.StrokeLib
                     Math.Clamp((int)(a * front.B + (1 - a) * back.B), 0, 255));
             }
         }
-    }
-
-    public enum StartPointAlign
-    {
-        Center = 0,
-        Bottom = 1,
     }
 }

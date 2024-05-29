@@ -113,6 +113,8 @@ namespace ArtGenerator
         {
             EnsureFoldersExists();
 
+            List<string> files = new List<string>();
+
             var statusBar = new StatusBar();
             statusBar.Height = 40;
 
@@ -264,7 +266,7 @@ namespace ArtGenerator
                     var path = Path.Combine(outPath, ShapesSubFolder, $"errorData.txt");
                     File.WriteAllText(path, errorMap.dispersion.ToString());
                 });
-            }); 
+            });
         }
 
         private BitmapImage BitmapToImageSource(Bitmap bitmap)

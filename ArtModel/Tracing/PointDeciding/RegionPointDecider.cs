@@ -65,7 +65,7 @@ namespace ArtModel.Tracing.PointDeciding
         protected int _tileWidth;
         protected int _tileHeight;
 
-        protected double _dispersionBound;
+        protected double _dispersionMinBound;
 
         protected HashSet<(int x, int y)> _tilesToRecalculate;
 
@@ -77,7 +77,7 @@ namespace ArtModel.Tracing.PointDeciding
             _artificial = arificial;
             _tileWidth = tileWidth;
             _tileHeight = tileHeight;
-            _dispersionBound = dispersionBound;
+            _dispersionMinBound = dispersionBound;
             _tilesToRecalculate = new();
 
             GenerateTiles(_tileWidth, _tileHeight);
@@ -139,7 +139,7 @@ namespace ArtModel.Tracing.PointDeciding
                 var index = _orderedTileIndex[i];
                 Tile tile = _tiles[index.y, index.x];
 
-                if (_avaliableTiles[index.y, index.x] && tile.Dispersion >= _dispersionBound)
+                if (_avaliableTiles[index.y, index.x] && tile.Dispersion >= _dispersionMinBound)
                 {
                     _avaliableTiles[index.y, index.x] = false;
                     _orderedTileIndex.Remove(index);
@@ -212,7 +212,7 @@ namespace ArtModel.Tracing.PointDeciding
                 }
             }
 
-            _dispersionBound = _boundFactor * (maxDisp - minDisp) + minDisp;
+            _dispersionMinBound = _boundFactor * (maxDisp - minDisp) + minDisp;
 
             _dispersionBoundReuse = _dispersionBoundReuse * (maxDisp - minDisp) + minDisp;
         }
@@ -227,7 +227,7 @@ namespace ArtModel.Tracing.PointDeciding
                 var index = _orderedTileIndex[i];
                 Tile tile = _tiles[index.y, index.x];
 
-                if (_reuseLeft[index.y, index.x] > 0 && tile.Dispersion >= _dispersionBound)
+                if (_reuseLeft[index.y, index.x] > 0 && tile.Dispersion >= _dispersionMinBound)
                 {
                     if (tile.Dispersion < _dispersionBoundReuse)
                     {
