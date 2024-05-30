@@ -225,16 +225,18 @@ namespace ArtModel.Tracing
                                 stroke.PhongModel = PhongReflectionModel.ApplyReflection(stroke, normal, parameters);*/
                             }
 
-                            // Расчёт контура
+                            // Делаем ресайз
+                            stroke.Resize(currentresizeCoef);
+
+                            // Расчёт контура, если такая функция включена
                             if (ArtStatistics.Instance.ShapesMap)
                             {
                                 stroke.InitShape();
-                                stroke.Shape.CalculateShape();
-                                stroke.Shape.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "Shape");
+                                stroke.Shape.CalculateShape();     
                             }
 
-                            // Делаем ресайз и рескейл как самого мазка, так и его модели фонга
-                            stroke.Resize(currentresizeCoef);
+                            // Делаем поворот как самого мазка, так и его модели фонга
+                            
                             stroke.Rotate(tracingResult.MainAbsAngle, Color.White);
 
                             stroke.PhongModel?.Resize(currentresizeCoef);
@@ -516,6 +518,9 @@ namespace ArtModel.Tracing
 
                             decider?.PointCallback((globalX, globalY));
                         }
+
+                        //stroke.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "stroke1");
+                        //stroke.Shape?.GetShape().Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "shape1");
 
                         // Запись контура
                         if (ArtStatistics.Instance.ShapesMap)
