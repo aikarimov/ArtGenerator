@@ -1,6 +1,7 @@
 ﻿ using ArtModel.MathLib;
 using ArtModel.StrokeLib;
 using System.Drawing;
+using System.Reflection;
 
 namespace ArtModel.PhongReflection
 {
@@ -55,6 +56,10 @@ namespace ArtModel.PhongReflection
                         double g = normalPixel.G / 255f * 2 - 1;
                         double b = (normalPixel.B - 128) / 128f * -1;
                         Vector3 normal = new Vector3(r, g, b);
+
+
+                       
+
 
                         // Эмбиент составляющая
                         double ambient = parameters.AmbientStrenght;

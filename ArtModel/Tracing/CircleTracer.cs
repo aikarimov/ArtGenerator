@@ -45,7 +45,7 @@ namespace ArtModel.Tracing
                 {
                     CircleMaskResult circle = StrokeCircleMask.ApplyCircleMask(bitmap, x, y, r_curr);
                     MeanColorCalculator calc = new MeanColorCalculator(bitmap, circle.Coordinates);
-                    double dispesion = GraphicsMath.GetDispersion(bitmap, calc.GetMeanColor(), circle.Coordinates);
+                    double dispesion = GraphicsMath.GetSquaredAverageError(bitmap, calc.GetMeanColor(), circle.Coordinates);
 
                     rois[index] = new CircleTracingResult()
                     {

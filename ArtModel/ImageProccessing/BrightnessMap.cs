@@ -53,16 +53,16 @@ namespace ArtModel.ImageModel.ImageProccessing
                     artBitmapGray[x, y] = Color.FromArgb(255, grayPixel, grayPixel, grayPixel);
                 }
             }
+            artBitmapGray.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "GrayImage");
 
-            //artBitmapGray.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "GrayImage");
-
-            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX);
-            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY);
+            double[,] dx = ImageFiltering.ApplyConvolution(gray, sobelX2);
+            double[,] dy = ImageFiltering.ApplyConvolution(gray, sobelY2);
 
             double[,] edges = new double[origBm.Height, origBm.Width];
+
             var averagingFilter = GetAveragingFilter(brushRadius);
-            dx = ImageFiltering.ApplyConvolution(dx, averagingFilter);
-            dy = ImageFiltering.ApplyConvolution(dy, averagingFilter);
+            //dx = ImageFiltering.ApplyConvolution(dx, averagingFilter);
+            //dy = ImageFiltering.ApplyConvolution(dy, averagingFilter);
 
             double[,] result = new double[origBm.Height, origBm.Width];
 
@@ -104,7 +104,7 @@ namespace ArtModel.ImageModel.ImageProccessing
                 }
             }
 
-            //artBitmapEdge.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "artBitmapEdge");
+            artBitmapEdge.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "artBitmapEdge");
 
             return result;
         }

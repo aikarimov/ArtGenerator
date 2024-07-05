@@ -15,7 +15,7 @@ namespace ArtModel.Tracing.PathTracing
         public MeanColorCalculator Calculator { get; set; }
         public HashSet<(int x, int y)> Coordinates { get; set; }
         public Color MeanColor { get; set; }
-        public double Dispersion { get; set; }
+        public double SquaredError { get; set; }
 
         // Поля для обратной связи, т.к. много путей ищутся параллельно
         public int Length { get; set; }
@@ -73,13 +73,13 @@ namespace ArtModel.Tracing.PathTracing
             AddCirclePoints(StrokeCircleMask.ApplyCircleMask(bitmap, pointEnd.x, pointEnd.y, radius));
 
             Color meanColor = localCalculator.GetMeanColor();
-            double dispersion = GraphicsMath.GetDispersion(bitmap, meanColor, localPathCoordinates, segmentedPathCoordinates);
+            double squaredError = GraphicsMath.GetSquaredAverageError(bitmap, meanColor, localPathCoordinates, segmentedPathCoordinates);
 
             return new TracingPath()
             {
                 Coordinates = localPathCoordinates,
                 MeanColor = meanColor,
-                Dispersion = dispersion,
+                SquaredError = squaredError,
                 Calculator = localCalculator,
                 EndPoint = pointEnd,
             };

@@ -29,8 +29,7 @@ namespace ArtGenerator.Views
         private int _width;
         private int _height;
 
-        private FileSystemWatcher watcher;
-
+        private FileSystemWatcher _watcher;
         private BitmapImage _bitmapImage;
 
         public event Action NotifyImageLoaded;
@@ -78,7 +77,7 @@ namespace ArtGenerator.Views
                 button_confirm.IsEnabled = false;
                 button_confirm.IsEnabled = false;
                 button_pick_style.IsEnabled = false;
-                button_save_style.IsEnabled = false;              
+                button_save_style.IsEnabled = false;
                 button_open_json.IsEnabled = false;
             };
         }
@@ -90,13 +89,13 @@ namespace ArtGenerator.Views
 
         private void InitWatcher()
         {
-            watcher = new FileSystemWatcher();
-            watcher.Path = _currentDataFolderPath;
-            watcher.Filter = "*.*";
+            _watcher = new FileSystemWatcher();
+            _watcher.Path = _currentDataFolderPath;
+            _watcher.Filter = "*.*";
 
-            watcher.NotifyFilter = NotifyFilters.LastWrite;
-            watcher.Changed += ValidateJson;
-            watcher.EnableRaisingEvents = true;
+            _watcher.NotifyFilter = NotifyFilters.LastWrite;
+            _watcher.Changed += ValidateJson;
+            _watcher.EnableRaisingEvents = true;
         }
 
         private void EnsureFoldersExists()
@@ -214,7 +213,7 @@ namespace ArtGenerator.Views
         // Подтвердить
         private void button_confirm_Click(object sender, RoutedEventArgs e)
         {
-            watcher.Dispose();
+            _watcher.Dispose();
 
             try
             {
@@ -300,7 +299,10 @@ namespace ArtGenerator.Views
                 Dispersion_Stroke_Max = Convert.ToInt32(input_dispersion_max.Text),
 
                 Dispersion_Tile_Min = Convert.ToInt32(input_tile_dipserion_min.Text),
-                Dispersion_Tile_Max = Convert.ToInt32(input_tile_dipserion_max.Text)
+                Dispersion_Tile_Max = Convert.ToInt32(input_tile_dipserion_max.Text),
+
+                Dispersion_Reject_Min = Convert.ToInt32(input_reject_dipserion_min.Text),
+                Dispersion_Reject_Max = Convert.ToInt32(input_reject_dipserion_max.Text)
             };
         }
 
@@ -324,6 +326,9 @@ namespace ArtGenerator.Views
 
             input_tile_dipserion_min.Text = input.Dispersion_Tile_Min.ToString();
             input_tile_dipserion_max.Text = input.Dispersion_Tile_Max.ToString();
+
+            input_reject_dipserion_min.Text = input.Dispersion_Reject_Min.ToString();
+            input_reject_dipserion_max.Text = input.Dispersion_Reject_Max.ToString();
         }
     }
 }

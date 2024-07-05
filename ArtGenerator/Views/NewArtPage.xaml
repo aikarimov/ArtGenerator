@@ -12,32 +12,35 @@
         <Label Content="Изображение:" Margin="10,72,423,745" FontSize="24"/>
         <Button x:Name="button_load" Content="Загрузить" Margin="10,122,478,698" BorderBrush="Black" Foreground="Black" Background="White" FontSize="24" HorizontalContentAlignment="Left" Click="button_load_Click"/>
         <Image x:Name="targe_image" HorizontalAlignment="Left" Height="216" Margin="332,14,0,0" VerticalAlignment="Top" Width="220" UseLayoutRounding="False" Source="/Resources/drawable/no-image.png" OpacityMask="White"/>
-        <Label Content="Поколения:" Margin="10,239,456,578" FontSize="24"/>
-        <Label Content="Длина кисти" Margin="10,370,378,447" FontSize="24"/>
-        <Label Content="Блюр изображения" Margin="10,478,376,343" FontSize="24"/>
-        <Label Content="Дисперсия регионов" Margin="10,585,367,235" FontSize="24"/>
-        <TextBox x:Name="input_gen" HorizontalAlignment="Left" Margin="152,243,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_brushL_min" HorizontalAlignment="Left" Margin="262,370,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_brushL_max" HorizontalAlignment="Left" Margin="440,370,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_blur_min" HorizontalAlignment="Left" Margin="262,480,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_blur_max" HorizontalAlignment="Left" Margin="440,480,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_dispersion_min" HorizontalAlignment="Left" Margin="262,535,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="34" FontSize="24"/>
-        <TextBox x:Name="input_dispersion_max" HorizontalAlignment="Left" Margin="440,534,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <Label Content="Поколения:" Margin="10,193,456,624" FontSize="24"/>
+        <Label Content="Длина кисти" Margin="10,320,378,497" FontSize="24"/>
+        <Label Content="Блюр изображения" Margin="10,428,376,393" FontSize="24"/>
+        <Label Content="Дисперсия регионов" Margin="10,535,367,285" FontSize="24"/>
+        <TextBox x:Name="input_gen" HorizontalAlignment="Left" Margin="152,197,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushL_min" HorizontalAlignment="Left" Margin="262,320,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushL_max" HorizontalAlignment="Left" Margin="440,320,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_blur_min" HorizontalAlignment="Left" Margin="262,430,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_blur_max" HorizontalAlignment="Left" Margin="440,430,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_dispersion_min" HorizontalAlignment="Left" Margin="262,485,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="34" FontSize="24"/>
+        <TextBox x:Name="input_dispersion_max" HorizontalAlignment="Left" Margin="440,484,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
         <Button x:Name="button_confirm" Content="Запуск" HorizontalAlignment="Right" VerticalAlignment="Bottom" Height="61" Width="216" FontSize="24" Click="button_confirm_Click" Margin="0,0,10,10"/>
         <Button x:Name="button_open_json" Content="Открыть json" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="61" Width="216" FontSize="24" Click="button_open_json_Click" Margin="10,0,0,10"/>
         <Label x:Name="json_error_label" Content="Json содержит ошибки!" Margin="17,718,332,100" FontSize="24" Background="#FFFFA5A5" Visibility="Hidden"/>
         <Button x:Name="button_pick_style" Content="Выбрать стиль" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="40" Width="198" FontSize="24" BorderBrush="Black" Background="White" HorizontalContentAlignment="Left" Margin="408,0,0,161" Click="button_pick_style_Click"/>
         <Button x:Name="button_save_style" Content="Сохранить стиль" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="40" Width="198" FontSize="24" BorderBrush="Black" Background="White" HorizontalContentAlignment="Left" Margin="408,0,0,111" Click="button_save_style_Click"/>
-        <Label Content="Ширина кисти" Margin="10,423,374,394" FontSize="24"/>
-        <TextBox x:Name="input_brushW_min" HorizontalAlignment="Left" Margin="262,427,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_brushW_max" HorizontalAlignment="Left" Margin="440,427,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <Label x:Name="segments_label" Content="Сегменты:" Margin="10,274,480,543" FontSize="24"/>
-        <TextBox x:Name="input_segments" HorizontalAlignment="Left" Margin="152,283,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
-        <TextBox x:Name="input_tile_dipserion_min" HorizontalAlignment="Left" Margin="262,589,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="34" FontSize="24"/>
-        <TextBox x:Name="input_tile_dipserion_max" HorizontalAlignment="Left" Margin="440,587,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="36" FontSize="24"/>
-        <Label Content="MIN" Margin="319,323,0,495" FontSize="24" HorizontalAlignment="Left"/>
-        <Label Content="Дисперсия мазка" Margin="10,531,404,287" FontSize="24"/>
-        <Label Content="MAX" Margin="492,323,0,495" FontSize="24" HorizontalAlignment="Left"/>
+        <Label Content="Ширина кисти" Margin="10,373,374,444" FontSize="24"/>
+        <TextBox x:Name="input_brushW_min" HorizontalAlignment="Left" Margin="262,377,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_brushW_max" HorizontalAlignment="Left" Margin="440,377,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <Label x:Name="segments_label" Content="Сегменты:" Margin="10,228,480,589" FontSize="24"/>
+        <TextBox x:Name="input_segments" HorizontalAlignment="Left" Margin="152,237,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="35" FontSize="24"/>
+        <TextBox x:Name="input_tile_dipserion_min" HorizontalAlignment="Left" Margin="262,539,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="34" FontSize="24"/>
+        <TextBox x:Name="input_tile_dipserion_max" HorizontalAlignment="Left" Margin="440,537,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="36" FontSize="24"/>
+        <Label Content="MIN" Margin="319,273,0,545" FontSize="24" HorizontalAlignment="Left"/>
+        <Label Content="Дисперсия мазка" Margin="10,481,404,337" FontSize="24"/>
+        <Label Content="MAX" Margin="492,273,0,545" FontSize="24" HorizontalAlignment="Left"/>
         <Button x:Name="button_save_changes" Content="Сохранить изменения" HorizontalAlignment="Left" VerticalAlignment="Bottom" Height="60" Width="268" FontSize="24" Click="button_save_changes_click" Margin="10,0,0,131"/>
+        <Label Content="Граница мазка" Margin="10,595,367,225" FontSize="24"/>
+        <TextBox x:Name="input_reject_dipserion_min" HorizontalAlignment="Left" Margin="262,599,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="34" FontSize="24"/>
+        <TextBox x:Name="input_reject_dipserion_max" HorizontalAlignment="Left" Margin="440,597,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Width="166" Height="36" FontSize="24"/>
     </Grid>
 </Page>

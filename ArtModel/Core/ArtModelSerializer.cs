@@ -71,8 +71,13 @@ namespace ArtModel.Core
                 int dispersion_stroke_interval = inputData.Dispersion_Stroke_Max - inputData.Dispersion_Stroke_Min;
                 aGen.DispersionStrokeBound = (int)(inputData.Dispersion_Stroke_Min + dispersion_stroke_interval * factor_norm);
 
+                // Дисперсия регионов
                 int dispersion_tile_interval = inputData.Dispersion_Tile_Max - inputData.Dispersion_Tile_Min;
                 aGen.DispersionTileBound = (int)(inputData.Dispersion_Tile_Min + dispersion_tile_interval * factor_norm);
+
+                // Дисперсия отклонения мазка
+                int dispersion_reject_interval = inputData.Dispersion_Reject_Max - inputData.Dispersion_Reject_Min;
+                aGen.DispersionRejectBound = (int)(inputData.Dispersion_Reject_Min + dispersion_reject_interval * factor_norm);
 
                 // Итерации
                 // Можно смело изменять формулу
@@ -99,6 +104,7 @@ namespace ArtModel.Core
         public int BlurSigma { get; set; }
         public int DispersionStrokeBound { get; set; }
         public int DispersionTileBound { get; set; }
+        public int DispersionRejectBound { get; set; }
     }
 
     // Пользовательский ввод
@@ -110,20 +116,23 @@ namespace ArtModel.Core
             Generations = 7,
             Segments = 2,
 
-            StrokeWidth_Min = 8,
-            StrokeWidth_Max = 70,
+            StrokeWidth_Min = 6,
+            StrokeWidth_Max = 80,
 
-            StrokeLength_Min = 30,
-            StrokeLength_Max = 80,
+            StrokeLength_Min = 0,
+            StrokeLength_Max = 50,
 
             BlurSigma_Min = 4,
             BlurSigma_Max = 30,
 
-            Dispersion_Stroke_Min = 200,
-            Dispersion_Stroke_Max = 900,
+            Dispersion_Stroke_Min = 340,
+            Dispersion_Stroke_Max = 1500,
 
             Dispersion_Tile_Min = 5000,
             Dispersion_Tile_Max = 20000,
+
+            Dispersion_Reject_Min = 5000,
+            Dispersion_Reject_Max = 20000,
 
             Curve = GenerationCurve.Linear,
         };
@@ -153,6 +162,10 @@ namespace ArtModel.Core
         // Диапазон дисперсий для регионов
         public int Dispersion_Tile_Min { get; set; }
         public int Dispersion_Tile_Max { get; set; }
+
+        // Диапазон границ мазка
+        public int Dispersion_Reject_Min { get; set; }
+        public int Dispersion_Reject_Max { get; set; }
 
         // Способ разбиения на конкретные уровни
         public GenerationCurve Curve { get; set; }

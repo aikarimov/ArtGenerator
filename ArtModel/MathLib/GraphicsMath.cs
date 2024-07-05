@@ -57,7 +57,7 @@ namespace ArtModel.MathLib
             return R_sq + G_sq + B_sq;
         }
 
-        public static double GetDispersion(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
+        public static double GetSquaredAverageError(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
         {
             double sum = 0.0;
             int count = 0;
@@ -67,12 +67,11 @@ namespace ArtModel.MathLib
                 foreach (var pixel in set)
                 {
                     count++;
-                    double eucl = CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
-                    sum += eucl;
+                    sum += CalculateSquaredEuclideanDistance(bitmap[pixel.x, pixel.y], meanColor);
                 }
             }
 
-            return (sum / count);
+            return Math.Sqrt(sum / count);
         }
     }
 }

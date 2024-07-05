@@ -52,7 +52,7 @@ namespace ArtModel.ImageProccessing
                 using (SolidBrush brush = new SolidBrush(color))
                 {
                     g.FillRectangle(brush, 0, 0, Width, Height);
-                }
+                }   
             }
             LockBitmap();
         }

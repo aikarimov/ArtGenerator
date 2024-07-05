@@ -75,7 +75,7 @@ namespace ArtModel.StrokeLib
 
             using (Graphics g = Graphics.FromImage(rotatedBitmap.GetBitmap()))
             {
-                using (SolidBrush brush = new SolidBrush(fillColor))
+                using (var brush = new SolidBrush(fillColor))
                 {
                     g.FillRectangle(brush, 0, 0, newWidth, newHeight);
                 }
@@ -253,7 +253,7 @@ namespace ArtModel.StrokeLib
                 {
                     foreach (var p in GraphicsMath.GetLinePoints((x, y1), (x, y2)))
                     {
-                        edge.Edges[StrokeEdge.Edge.Left].Add(p);;
+                        edge.Edges[StrokeEdge.Edge.Left].Add(p); ;
                     }
                 }
 
