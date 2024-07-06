@@ -1,10 +1,11 @@
-﻿ using ArtModel.MathLib;
+﻿using ArtModel.MathLib;
 using ArtModel.StrokeLib;
 using System.Drawing;
 using System.Reflection;
 
 namespace ArtModel.PhongReflection
 {
+    // Параметры для рендера по фонгу
     public class PhongReflectionParameters
     {
         public double AmbientStrenght;
@@ -29,11 +30,13 @@ namespace ArtModel.PhongReflection
         }
     }
 
+    // Модель фонга
     public class PhongReflectionModel
     {
-        // Средний цвет, после которого стоит применять модель Фонга
+        // Средний цвет, после которого стоит применять модель Фонга. Он должен быть довольно ярким
         public static double BorderColorBrightness = (200 + 200 + 200) / 3;
 
+        // Применение модели освещенности. В целом классичекий алгоритм. Ищем 3 составляющие и суммируем
         public static Stroke ApplyReflection(Stroke stroke, Stroke normalsMap, PhongReflectionParameters parameters)
         {
             Stroke reflectionStroke = new Stroke(new Bitmap(stroke.Width, stroke.Height));
@@ -58,7 +61,7 @@ namespace ArtModel.PhongReflection
                         Vector3 normal = new Vector3(r, g, b);
 
 
-                       
+
 
 
                         // Эмбиент составляющая

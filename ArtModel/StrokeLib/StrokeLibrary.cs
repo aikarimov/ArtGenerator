@@ -1,11 +1,11 @@
 ﻿using ArtModel.Core;
 using ArtModel.Tracing;
 using System.Drawing;
-using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
 namespace ArtModel.StrokeLib
 {
+    // Классы для нормализации значений, ведь евклидово расстьояние будем искать не по абсолютным, но нормализованным велчиинам
     public class NormalizationParam
     {
         public NormalizationParam(double initialValue)
@@ -59,8 +59,10 @@ namespace ArtModel.StrokeLib
         Middle,
     }
 
+    // Класс для рабоыт с библиотекой мазков.
     public class StrokeLibrary
     {
+        // Коэффициент пересчёта из условных единиц в библиотеке (l15) в пиксели (15 * mm_tp_px_coef)
         public static double mm_tp_px_coef = 8.6;
         private string sourceLibraryPath;
 
@@ -96,7 +98,8 @@ namespace ArtModel.StrokeLib
         {
             var input = serializer.UserInput;
 
-            // Мазки с разными сегментами имеют разные параметры нормализации и разные границы в библиотеке
+            // Мазки с разными сегментами имеют разные параметры нормализации и разные границы в библиотеке. Поэтому руками вбиваем,
+            // Какие паарметры нормализации мы ожидаем из программы
 
             // 2 точки
             _normalizators[2].AddP(StrokeProperty.Width, 1 * mm_tp_px_coef);
@@ -119,6 +122,7 @@ namespace ArtModel.StrokeLib
             _normalizators[3].AddP(StrokeProperty.LtoW, input.StrokeLength_Min / input.StrokeWidth_Max);
         }
 
+        // Классификатор (1, 2, 3 точечные мазки). Вся классификация - это выбор мазка с минимальным евклидовым расстоянием.
         public Stroke ClassifyStroke(TracingResult targetStroke, ArtGeneration genData)
         {
             lock (locker)
@@ -144,9 +148,10 @@ namespace ArtModel.StrokeLib
 
                 return result;
             }
-            
+
         }
 
+        // 1-точечный классифицируем только по реальной ширине, у него нет незхависимых характеристик
         private Stroke ClassifyPt1(TracingResult targetStroke)
         {
             double width = targetStroke.SP.GetP(StrokeProperty.Width);
@@ -155,6 +160,10 @@ namespace ArtModel.StrokeLib
                 .MinBy(sourceStroke => Math.Abs(sourceStroke.SP.GetP(StrokeProperty.Width) - width))!.Copy();
         }
 
+        // 2-точечный классифицируем по отношению длины к ширине, а также вводим дополнительный весовой коэффициент учитывающий реальную ширину
+        // Это нужно, так как даже если отношение длины/ширине идеально - разница реального размера может быть слишком велика. И тогда
+        // Если мазкок сильнро увеличить - будет было. Уменьшить - пиксели. Поэтому мы можем чуть-чут ьпожертвовать идеальным отношением,
+        // Но зато получить мазок, который не надо будет очень сильно рескейлить.
         private Stroke ClassifyPt2(TracingResult targetStroke)
         {
             double target_ltow = _normalizators[2].Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
@@ -173,6 +182,8 @@ namespace ArtModel.StrokeLib
                    })!.Copy();
         }
 
+        // Логика с версовым коээфициентом аналогична PT2. Однако тут ещё классфиицруем по углу и по fraction. Fraction - доля 1го сегмента от всей длины.
+        // Ну и по отношению длины к ширине.
         private Stroke ClassifyPt3(TracingResult targetStroke)
         {
             double target_ltow = _normalizators[3].Normalize(StrokeProperty.LtoW, targetStroke.SP.GetP(StrokeProperty.LtoW));
@@ -217,6 +228,7 @@ namespace ArtModel.StrokeLib
             return result;
         }
 
+        // Расчёт коээфициента рескейлап мазка. По дефолту идёт выравнивание по ширине.
         public double CalculateResizeCoefficient(TracingResult tracingResult, Stroke strokeData, ResizeCoefficient resizeCoefficient = ResizeCoefficient.Width)
         {
             switch (resizeCoefficient)
@@ -235,6 +247,7 @@ namespace ArtModel.StrokeLib
         }
     }
 
+    // Считывание мазков из файла
     public static class StrokeLibraryReader
     {
         public static void ReadAllStrokes(string rootPath, Dictionary<int, List<Stroke>> data, double resizeCoef = 1.0)

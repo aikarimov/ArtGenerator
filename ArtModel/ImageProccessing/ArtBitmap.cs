@@ -4,6 +4,7 @@ using System.Drawing.Imaging;
 
 namespace ArtModel.ImageProccessing
 {
+    // Кастомный класс для битмапы. Он реально быстрее чем просто Bitmap. Но надо часто юзать Unlock() и Lock() если хотим редактировать пиксели.
     public unsafe class ArtBitmap
     {
         protected Bitmap bitmap;
@@ -52,7 +53,7 @@ namespace ArtModel.ImageProccessing
                 using (SolidBrush brush = new SolidBrush(color))
                 {
                     g.FillRectangle(brush, 0, 0, Width, Height);
-                }   
+                }
             }
             LockBitmap();
         }

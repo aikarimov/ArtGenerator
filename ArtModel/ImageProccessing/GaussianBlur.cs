@@ -2,6 +2,7 @@
 
 namespace ArtModel.ImageModel.ImageProccessing
 {
+    // Класс для размытия по гауссу. Применяем его не двумерной матрцией, а одномерной по двум напарвлениям. Так быстрее
     public class GaussianBlur
     {
         private enum Direction
@@ -54,6 +55,7 @@ namespace ArtModel.ImageModel.ImageProccessing
             return blurXY;
         }
 
+        // Генерация одномерно ядра гаусса
         private static double[,] Generate1dGaussianKernel(int kernelSize, double sigma, Direction direction)
         {
             int halfSize = kernelSize / 2;
@@ -80,6 +82,7 @@ namespace ArtModel.ImageModel.ImageProccessing
             return kernel;
         }
 
+        // Ну типо функция гаусса
         private static double G(int x, double sigma)
         {
             return 1.0 / Math.Sqrt(2 * Math.PI * sigma * sigma) * Math.Exp(-(x * x) / (2 * sigma * sigma));

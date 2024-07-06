@@ -4,6 +4,7 @@ using ArtModel.ImageProccessing;
 
 namespace ArtModel.ImageModel.ImageProccessing
 {
+    // Операция свертки для разных структур
     public class ImageFiltering
     {
         public static double[,] ApplyConvolution(double[,] matrix, double[,] kernel)
@@ -126,7 +127,7 @@ namespace ArtModel.ImageModel.ImageProccessing
                     double sum_R = 0.0;
                     double sum_G = 0.0;
                     double sum_B = 0.0;
-                        
+
                     for (int m = -halfKernelRows; m <= halfKernelRows; m++)
                     {
                         for (int n = -halfKernelColumns; n <= halfKernelColumns; n++)
@@ -154,6 +155,7 @@ namespace ArtModel.ImageModel.ImageProccessing
             return result;
         }
 
+        // Перевод в серый
         public static double[,] ToGrayScale(ArtBitmap artBitmap)
         {
             int height = artBitmap.Height;

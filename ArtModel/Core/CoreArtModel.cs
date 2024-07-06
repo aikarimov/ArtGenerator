@@ -11,6 +11,7 @@ namespace ArtModel.Core
         public string LibraryPath;
     }
 
+    // Главный класс, где создается Трейсер. Больше он ничего такого не делает
     public class CoreArtModel
     {
         private ArtBitmap _originalCanvas;
@@ -26,6 +27,7 @@ namespace ArtModel.Core
             _pathSettings = pathSettings;
         }
 
+        // Созданрие трейсера, по нему будут идти итерации
         public Tracer CreateTracer(CancellationToken token)
         {
             Tracer tracer = new Tracer(_originalCanvas, _modelSerializer, _pathSettings, token);

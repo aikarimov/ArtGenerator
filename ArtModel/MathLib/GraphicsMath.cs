@@ -5,6 +5,7 @@ namespace ArtModel.MathLib
 {
     public class GraphicsMath
     {
+        // Алгоритмом Брезенхема получаем все точки между данными двумя
         public static IEnumerable<(int x, int y)> GetLinePoints((int x, int y) p1, (int x, int y) p2)
         {
             HashSet<(int x, int y)> points = new HashSet<(int x, int y)>();
@@ -41,6 +42,7 @@ namespace ArtModel.MathLib
             return points;
         }
 
+        // Расчет альфы итогвоого цвета. Можно считать через параметр Color.A, но он кривой) Хз, не работает. Поэтому руками считаю
         public static Color CalculateAlpha(in Color back, in Color front, in double a)
         {
             return Color.FromArgb(
@@ -49,6 +51,7 @@ namespace ArtModel.MathLib
                 Math.Clamp((int)(a * front.B + (1 - a) * back.B), 0, 255));
         }
 
+        // Просто евклидово расстояние. Не берем корень, так как потом всё равно будем возводить в квадрат
         public static double CalculateSquaredEuclideanDistance(in Color color1, in Color color2)
         {
             double R_sq = Math.Pow(color1.R - color2.R, 2);
@@ -57,6 +60,7 @@ namespace ArtModel.MathLib
             return R_sq + G_sq + B_sq;
         }
 
+        // По набору хэшсетов точек находит суммарное СКО
         public static double GetSquaredAverageError(ArtBitmap bitmap, in Color meanColor, params HashSet<(int x, int y)>[] pixelSets)
         {
             double sum = 0.0;

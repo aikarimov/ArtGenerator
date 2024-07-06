@@ -57,6 +57,7 @@ namespace ArtModel.Tracing
 
         private object _lock = new object();
 
+        // Класс трейсера (трейсер - в целом весь алгоритм-рисовальщик).
         public Tracer(ArtBitmap originalCanvas, ArtModelSerializer serealizer, PathSettings pathSettings, CancellationToken cancellationToken)
         {
             _artModelSerializer = serealizer;
@@ -96,47 +97,8 @@ namespace ArtModel.Tracing
                 var localData = _artModelSerializer.Generations[gen];
 
                 var blurredOriginalBitmap = GaussianBlur.ApplyBlur(_originalModel, localData.BlurSigma);
-                blurredOriginalBitmap.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "BlurredOriginalBitmap");
-
-
-
+              
                 var brightnessMap = BrightnessMap.GetBrightnessMap(blurredOriginalBitmap, localData.StrokeWidth_Max / 2);
-
-                var levels = new int[256];
-                var art1 = new ArtBitmap(_originalModel.Width, _originalModel.Height);
-                for (int x = 0; x < _originalModel.Width; x++)
-                {
-                    for (int y = 0; y < _originalModel.Height; y++)
-                    {
-                        double angle = brightnessMap[y, x];
-                        double angleFraction = (angle + Math.PI) / (2.0 * Math.PI);
-                        int col = (int)(Math.Round(angleFraction * 255.0));
-
-                        levels[col]++;
-
-                        art1[x, y] = Color.FromArgb(255, col, col, col);
-                    }
-                }
-                art1.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "BrightnessMap");
-
-
-
-
-                double[,] blurredBrightnessMap = GaussianBlur.ApplyBlurToBrightnessMap(brightnessMap, localData.BlurSigma);
-                var blurredBrightnessMapArt = new ArtBitmap(_originalModel.Width, _originalModel.Height);
-                for (int x = 0; x < _originalModel.Width; x++)
-                {
-                    for (int y = 0; y < _originalModel.Height; y++)
-                    {
-                        double angle = blurredBrightnessMap[y, x];
-
-                        double afr = (angle + Math.PI) / (2 * Math.PI);
-                        byte col = (byte)(Math.Clamp(afr * 255, 0, 255));
-                        blurredBrightnessMapArt[x, y] = Color.FromArgb(col, col, col);
-                    }
-                }
-                blurredBrightnessMapArt.Save("C:\\Users\\skura\\source\\repos\\ArtGenerator\\Output\\Images", "BlurredBrightnessMap");
-
 
                 (int x, int y) coordinates;
 
@@ -208,7 +170,7 @@ namespace ArtModel.Tracing
                         int i = index;
                         tasks[i] = Task.Run(() =>
                         {
-                            TracingResult tracingResult = GetSegmentedTracePath(localData, _originalModel, coordinates, blurredBrightnessMap, direction);
+                            TracingResult tracingResult = GetSegmentedTracePath(localData, _originalModel, coordinates, brightnessMap, direction);
                             var stroke = strokeLibrary.ClassifyStroke(tracingResult, localData);
                             double currentresizeCoef = strokeLibrary.CalculateResizeCoefficient(tracingResult, stroke);
 

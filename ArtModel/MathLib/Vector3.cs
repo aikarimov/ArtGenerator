@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace ArtModel.MathLib
 {
+    // Хз зачем, ведь есть System.Numerics.Vector3 или типо того
     public class Vector3
     {
         public double X { get; init; }
